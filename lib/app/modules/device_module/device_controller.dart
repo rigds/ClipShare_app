@@ -674,7 +674,7 @@ class DeviceController extends GetxController with GetSingleTickerProviderStateM
     if (newDisabled) {
       final devInfo = DevInfo.fromDevice(device);
       unawaited(sktService.disconnectDevice(devInfo, true));
-      unawaited(storageService.disconnectDevice(device.guid));
+      storageService.disconnectDevice(device.guid);
     }
     // 关闭底部弹窗
     Navigator.pop(context);

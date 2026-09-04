@@ -77,3 +77,18 @@ APK 输出：build/app/outputs/flutter-apk/app-release.apk
   - 搜不到 => 构建用的源码不含本次修复（检查是否替换/提交到位、
     CI 是否构建成功、安装的是否为最新 APK）。
   - 搜得到但界面无记录 => 请把该日志发来，属界面显示问题，另行修复。
+
+========================================
+【2026-09-05 v2 修复】编译错误修复
+========================================
+问题：device_controller.dart:677 对返回 void 的
+      storageService.disconnectDevice() 使用了 unawaited()，
+      导致 CI 构建失败：
+      "This expression has type 'void' and can't be used"
+修复：去掉 unawaited 包装，改为直接调用。
+      （unawaited(sktService.disconnectDevice(...)) 保留，
+        因为 SocketService 版本返回 Future<bool>，合法。）
+
+【重要】本次请用整包替换后直接重新构建，
+      不要再回退/删改任何文件。构建成功后日志中应出现：
+      [BuildMarker] | records-resend-v3 build 2026-09-05
