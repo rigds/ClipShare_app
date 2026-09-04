@@ -85,7 +85,7 @@ class SyncFileController extends GetxController with GetTickerProviderStateMixin
 
   List<Widget> get sendList {
     final syncingList = syncingFileService.syncingFiles;
-    return syncingList.where((file) => file.isSender && file.state != SyncingFileState.done).map(
+    return syncingList.where((file) => file.isSender).map(
       (e) {
         return Card(
           elevation: 0,
@@ -103,7 +103,7 @@ class SyncFileController extends GetxController with GetTickerProviderStateMixin
 
   List<Widget> get recList {
     final syncingList = syncingFileService.syncingFiles;
-    return syncingList.where((file) => !file.isSender && file.state != SyncingFileState.done).map(
+    return syncingList.where((file) => !file.isSender).map(
       (e) {
         return Container(
           margin: 5.insetT,
@@ -117,6 +117,28 @@ class SyncFileController extends GetxController with GetTickerProviderStateMixin
   }
 
   ///endregion
+
+  /// 清空指定方向（发送/接收）的已结束记录，进行中的传输不受影响。
+  void clearFinishedRecords({required bool sender}) {
+    final finished = syncingFileService.syncingFiles
+        .where((f) =>
+            f.isSender == sender &&
+            (f.state == SyncingFileState.done ||
+                f.state == SyncingFileState.error))
+        .map((f) => f.recordKey)
+        .toList();
+    for (var key in finished) {
+      syncingFileService.removeSyncingFile(key);
+    }
+  }
+
+  /// 是否还有可清空的已结束记录。
+  bool hasFinishedRecords({required bool sender}) {
+    return syncingFileService.syncingFiles.any((f) =>
+        f.isSender == sender &&
+        (f.state == SyncingFileState.done ||
+            f.state == SyncingFileState.error));
+  }
 
   @override
   void onInit() {

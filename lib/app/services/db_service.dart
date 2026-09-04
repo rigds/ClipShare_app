@@ -59,7 +59,7 @@ const views = [VHistoryTagHold];
 ///
 /// 2. 直接执行 scripts/db_gen.bat 一键完成
 @Database(
-  version: 10,
+  version: 11,
   entities: tables,
   views: views,
 )
@@ -141,6 +141,7 @@ class DbService extends GetxService {
       migration7to8,
       migration8to9,
       migration9to10,
+      migration10to11,
     ]).build();
     version = await _db.database.database.getVersion();
     return this;
@@ -312,5 +313,13 @@ class DbService extends GetxService {
         PRIMARY KEY (`opId`, `targetDevId`)
       )
     ''');
+  });
+
+  ///数据库版本 10 -> 11
+  ///Device 表新增 isDisabled 字段，支持禁用设备（息屏亮屏不自动重连）
+  final migration10to11 = Migration(10, 11, (database) async {
+    if (!await hasColumnInTable(database, 'Device', 'isDisabled')) {
+      await database.execute("ALTER TABLE `Device` ADD COLUMN `isDisabled` INTEGER NOT NULL DEFAULT 0;");
+    }
   });
 }

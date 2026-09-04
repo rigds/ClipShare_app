@@ -23,6 +23,7 @@ class DeviceCard extends StatefulWidget {
   final bool isPaired;
   final bool isSelf;
   final bool isConnected;
+  final bool isDisabled;
   final AppVersion? minVersion;
   final AppVersion? version;
   final TransportProtocol protocol;
@@ -39,6 +40,7 @@ class DeviceCard extends StatefulWidget {
     required this.minVersion,
     required this.version,
     required this.protocol,
+    this.isDisabled = false,
   });
 
   bool get isVersionCompatible => minVersion == null || version == null ? true : minVersion! <= appConfig.version && version! >= appConfig.minVersion;
@@ -56,6 +58,7 @@ class DeviceCard extends StatefulWidget {
     AppVersion? minVersion,
     AppVersion? version,
     TransportProtocol? protocol,
+    bool? isDisabled,
   }) {
     final connected = isConnected ?? this.isConnected;
     return DeviceCard(
@@ -68,6 +71,7 @@ class DeviceCard extends StatefulWidget {
       minVersion: !connected ? null : minVersion ?? this.minVersion,
       version: !connected ? null : version ?? this.version,
       protocol: protocol ?? this.protocol,
+      isDisabled: isDisabled ?? this.isDisabled,
     );
   }
 }
@@ -88,9 +92,12 @@ class _DeviceCardState extends State<DeviceCard> {
 
   IconData get _currIconData => (Constants.devTypeIcons[widget.dev!.type] ?? const Icon(Icons.devices_other_outlined)).icon!;
 
-  bool get _showConnectedAccent => !_empty && widget.isPaired && widget.isConnected;
+  bool get _showConnectedAccent => !_empty && widget.isPaired && widget.isConnected && !widget.isDisabled;
 
   Color _deviceAccentColor(BuildContext context) {
+    if (widget.isDisabled) {
+      return Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5);
+    }
     if (!_showConnectedAccent) {
       return Theme.of(context).colorScheme.onSurfaceVariant;
     }
@@ -98,6 +105,9 @@ class _DeviceCardState extends State<DeviceCard> {
   }
 
   IconData _statusIconData() {
+    if (widget.isDisabled) {
+      return Icons.block;
+    }
     if (_empty || !widget.isConnected) {
       return Icons.cloud_off_outlined;
     }
@@ -114,6 +124,9 @@ class _DeviceCardState extends State<DeviceCard> {
   }
 
   String _statusLabel() {
+    if (widget.isDisabled) {
+      return TranslationKey.deviceDisabled.tr;
+    }
     if (_empty || !widget.isConnected) {
       return TranslationKey.disconnected.tr;
     }
@@ -130,6 +143,9 @@ class _DeviceCardState extends State<DeviceCard> {
   }
 
   Color _deviceIconBackgroundColor(BuildContext context, ColorScheme colorScheme) {
+    if (widget.isDisabled) {
+      return colorScheme.surfaceContainerHighest.withValues(alpha: 0.32);
+    }
     if (!_showConnectedAccent) {
       return colorScheme.surfaceContainerHighest.withValues(alpha: 0.64);
     }
@@ -183,7 +199,7 @@ class _DeviceCardState extends State<DeviceCard> {
     );
   }
 
-  Widget _buildTagChip(String text, ColorScheme colorScheme) {
+  Widget _buildTagChip(String text, ColorScheme colorScheme, {Color? chipColor, Color? textColor}) {
     final empty = _empty && text.trim().isEmpty;
     if (empty) {
       return Container(
@@ -197,7 +213,7 @@ class _DeviceCardState extends State<DeviceCard> {
     }
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.64),
+        color: chipColor ?? colorScheme.surfaceContainerHighest.withValues(alpha: 0.64),
         borderRadius: BorderRadius.circular(11),
       ),
       child: Padding(
@@ -205,7 +221,7 @@ class _DeviceCardState extends State<DeviceCard> {
         child: Text(
           text,
           style: TextStyle(
-            color: colorScheme.onSurfaceVariant,
+            color: textColor ?? colorScheme.onSurfaceVariant,
             fontSize: 11,
             height: 1,
           ),
@@ -218,6 +234,8 @@ class _DeviceCardState extends State<DeviceCard> {
     return [
       _buildTagChip(_empty ? "    " : widget.dev!.type, colorScheme),
       if (widget.isSelf) _buildTagChip(TranslationKey.selfDeviceName.tr, colorScheme),
+      if (widget.isDisabled)
+        _buildTagChip(TranslationKey.deviceDisabled.tr, colorScheme, chipColor: Colors.red.withValues(alpha: 0.15), textColor: Colors.red.shade400),
       if (!widget.isVersionCompatible)
         Row(
           mainAxisSize: MainAxisSize.min,

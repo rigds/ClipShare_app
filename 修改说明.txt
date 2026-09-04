@@ -1,0 +1,79 @@
+========================================
+ClipShare 最终完整版（基于你提供的 ClipShare-master (3).zip）
+========================================
+
+【本包内容】
+以你的完整源码为基础，替换了 19 个修复文件，其余文件与你的包完全一致。
+你的 android/gradle.properties（含 kotlin.incremental=false）已保留未动。
+
+【上次构建失败原因回顾】
+storage_service.dart 引用了 Device.isDisabled（禁用设备功能），
+但 device.dart / device_dao.dart / db_service.dart / app_db.floor.g.dart
+等配套文件未一起替换 → 编译错误。本包已包含全部配套文件，整体替换即可。
+
+【使用方式】
+用本包整个替换项目目录后直接构建：
+    flutter pub get
+    flutter build apk --release
+APK 输出：build/app/outputs/flutter-apk/app-release.apk
+
+------------------------------------------------
+本包包含的全部修复（相对上游原版共 20 个文件）
+------------------------------------------------
+
+一、亮屏重连通知服务（方案B：连接健康则跳过，避免无谓重连）
+  lib/app/services/transport/storage_ws_service.dart   新增 isHealthy
+  lib/app/services/transport/storage_service.dart      onScreenOpened 按需重连
+
+二、禁用设备功能（isDisabled 字段及配套）
+  lib/app/data/repository/entity/tables/device.dart    Device.isDisabled 字段
+  lib/app/data/repository/dao/device_dao.dart          updateDeviceDisabled
+  lib/app/services/db_service.dart                     migration10to11（DB 加列）
+  lib/app/data/repository/db/app_db.floor.g.dart       floor 生成代码
+  lib/app/widgets/device/device_card.dart              「已禁用」角标
+  lib/app/modules/device_module/device_controller.dart 禁用/启用按钮与拦截
+  lib/app/services/transport/socket_service.dart       禁用设备跳过重连/广播
+
+三、WebDAV uploadFile 目录自动创建（修复 403/目录不存在）
+  lib/app/handlers/storage/storage_client.dart         接口加 createDir 参数
+  lib/app/handlers/storage/web_dav_client.dart         PUT 失败级联建目录重试
+  lib/app/handlers/storage/aliyun_oss_client.dart      同步签名
+  lib/app/handlers/storage/s3_client.dart              同步签名
+  test/app/handlers/storage/storage_client_test.dart   配套测试（不影响打包）
+
+四、发送/接收进度保留 + 失败/空发送可重发（新功能）
+  lib/app/data/models/syncing_file.dart                recordKey/错误信息/重发上下文
+  lib/app/services/syncing_file_progress_service.dart  唯一键存储、retry、完成记录保留
+  lib/app/handlers/sync/file_sync_handler.dart         空发送标记失败、可重发
+  lib/app/services/transport/storage_service.dart      发送记录绑定设备、失败可重发
+  lib/app/widgets/sync_file_status.dart                停止/移除/重发按钮、失败原因 Tooltip
+  lib/app/modules/sync_file_module/sync_file_controller.dart 记录保留、清空已结束
+  lib/app/modules/sync_file_module/sync_file_page.dart  「清空已结束记录」操作条
+
+五、翻译（以上功能全部文案，zh/en）
+  lib/app/data/enums/translation_key.dart
+  lib/app/translations/zh_cn_translations.dart
+  lib/app/translations/en_us_translations.dart
+
+六、Android 签名自动回退
+  android/app/build.gradle
+  有 key.properties 用正式签名；没有则自动用 debug 签名，保证任何环境
+  都能构建出可安装的 APK（替代你之前手动注释签名的写法）。
+  注意：debug 签名每次构建环境可能不同，换机器构建后升级安装需先卸载旧版。
+
+【可选】NDK 版本警告（非致命）
+  日志中 "configured with Android NDK 28.0.13004108, but ..." 只是警告。
+  想消除可在 android/app/build.gradle 的 android{ } 中设
+  ndkVersion = "28.2.13676358"。
+
+【重要】构建标记（v3, 2026-09-05）
+  为确认安装的 APK 是否包含本次"进度保留+重发"修复，新增两条日志标记：
+  1. App 启动时打印:  [BuildMarker] | records-resend-v3 build 2026-09-05
+     （位于 syncing_file_progress_service.dart 的 init）
+  2. 每次发送文件时打印:  send record created: <recordKey>
+     （位于 file_sync_handler.dart 发送记录创建处）
+  验证方法：重新构建安装后，发送一个文件，然后在日志文件里搜索
+  "records-resend-v3" 或 "send record created"。
+  - 搜不到 => 构建用的源码不含本次修复（检查是否替换/提交到位、
+    CI 是否构建成功、安装的是否为最新 APK）。
+  - 搜得到但界面无记录 => 请把该日志发来，属界面显示问题，另行修复。

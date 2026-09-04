@@ -36,6 +36,9 @@ class Device {
   ///是否已配对
   bool isPaired;
 
+  ///是否已禁用（禁用后息屏亮屏不再自动重连）
+  bool isDisabled = false;
+
   String get name => customName == null || customName == "" ? devName : customName!;
 
   /// 初始化当前 Flutter 引擎的本机设备标识，子窗口需在创建页面前通过启动参数调用。
@@ -66,6 +69,7 @@ class Device {
     this.address,
     this.isPaired = false,
     this.internalAddress,
+    this.isDisabled = false,
   });
 
   Map<String, dynamic> toJson() {
@@ -78,6 +82,7 @@ class Device {
       "customName": customName,
       "isPaired": isPaired,
       "internalAddress": internalAddress,
+      "isDisabled": isDisabled,
     };
   }
 
@@ -92,6 +97,7 @@ class Device {
     this.uid = 0,
     this.type = "",
     this.isPaired = false,
+    this.isDisabled = false,
   });
 
   @override
@@ -110,6 +116,7 @@ class Device {
       address: map["address"],
       internalAddress: map["internalAddress"],
       isPaired: map["isPaired"],
+      isDisabled: map["isDisabled"] ?? false,
     );
   }
 
@@ -128,6 +135,7 @@ class Device {
     String? address,
     String? internalAddress,
     bool? isPaired,
+    bool? isDisabled,
   }) {
     return Device(
       guid: guid ?? this.guid,
@@ -138,6 +146,7 @@ class Device {
       address: address ?? this.address,
       internalAddress: internalAddress ?? this.internalAddress,
       isPaired: isPaired ?? this.isPaired,
+      isDisabled: isDisabled ?? this.isDisabled,
     );
   }
 }
