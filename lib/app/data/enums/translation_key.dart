@@ -367,6 +367,7 @@ enum TranslationKey {
   stop,
   failed,
   resend,
+  resendConfirm,
   sendFileFailed,
   sendFileNoReceiver,
   clearFinishedRecords,

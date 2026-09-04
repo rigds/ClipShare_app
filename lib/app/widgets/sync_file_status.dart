@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:clipshare/app/data/enums/syncing_file_state.dart';
@@ -212,14 +213,28 @@ class SyncFileStatus extends StatelessWidget {
                                   ),
                                 ),
                               ),
-                              // 发送失败 / 空发送：提供重发按钮
+                              // 发送失败 / 空发送：提供重发按钮（点击后先弹确认框）
                               Visibility(
                                 visible: !isLocal && syncingFile.canRetry,
                                 child: Tooltip(
                                   message: TranslationKey.resend.tr,
                                   child: IconButton(
-                                    onPressed: () async {
-                                      await syncingFile.retry();
+                                    onPressed: () {
+                                      final fileName =
+                                          syncingFile.filePath
+                                              .split(RegExp(r'[/\\]'))
+                                              .last;
+                                      Global.showTipsDialog(
+                                        context: Get.context!,
+                                        title: TranslationKey.resend.tr,
+                                        text:
+                                            "${TranslationKey.resendConfirm.tr}\n"
+                                            "$fileName -> ${syncingFile.fromDev.name}",
+                                        showCancel: true,
+                                        onOk: () {
+                                          unawaited(syncingFile.retry());
+                                        },
+                                      );
                                     },
                                     icon: const Icon(
                                       color: Colors.orange,

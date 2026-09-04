@@ -19,76 +19,37 @@ APK 输出：build/app/outputs/flutter-apk/app-release.apk
 
 ------------------------------------------------
 本包包含的全部修复（相对上游原版共 20 个文件）
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+v3 新增（2026-09-04 17:40）
 ------------------------------------------------
+重发按钮增加确认弹窗：
+  点击进度页的"重发"图标后，先弹出确认框
+  （标题：重发；内容：确定要重新发送该文件吗？+ 文件名 -> 目标设备），
+  点"确定"才真正重发，点"取消"不做任何操作。
+涉及文件（4 个）：
+  lib/app/widgets/sync_file_status.dart        重发按钮改为先弹确认框
+  lib/app/data/enums/translation_key.dart      新增 resendConfirm
+  lib/app/translations/zh_cn_translations.dart 中文文案
+  lib/app/translations/en_us_translations.dart 英文文案
 
-一、亮屏重连通知服务（方案B：连接健康则跳过，避免无谓重连）
-  lib/app/services/transport/storage_ws_service.dart   新增 isHealthy
-  lib/app/services/transport/storage_service.dart      onScreenOpened 按需重连
+------------------------------------------------
+v2 新增（2026-09-04 17:15）
+------------------------------------------------
+1. lib/main.dart 新增构建标记日志（BuildMarker）：
+   应用启动时输出
+   "build-marker: resend-v5 2026-09-04 (send-record + retry + retry-confirm-dialog)"
+   查看日志文件（应用目录 files/日期.txt）搜索 BuildMarker：
+   - 能看到 → 运行的是新代码
+   - 看不到 → 安装的仍是旧 APK（构建未成功或未安装新包）
 
-二、禁用设备功能（isDisabled 字段及配套）
-  lib/app/data/repository/entity/tables/device.dart    Device.isDisabled 字段
-  lib/app/data/repository/dao/device_dao.dart          updateDeviceDisabled
-  lib/app/services/db_service.dart                     migration10to11（DB 加列）
-  lib/app/data/repository/db/app_db.floor.g.dart       floor 生成代码
-  lib/app/widgets/device/device_card.dart              「已禁用」角标
-  lib/app/modules/device_module/device_controller.dart 禁用/启用按钮与拦截
-  lib/app/services/transport/socket_service.dart       禁用设备跳过重连/广播
+2. 新增独立工作流 .github/workflows/build-android-arm64.yml：
+   只构建 arm64 单 ABI，AOT 编译(gen_snapshot)只跑 1 遍，CI 明显加快，
+   产物 app-arm64-v8a-release.apk 体积约为全 ABI 的 1/3。
+   原有 build-android.yml 和 scripts/build_apk.bat 均未改动、照常可用。
+   用法：GitHub Actions 页面手动运行 "build-android-apk-arm64"。
+   注意：此包只能装 64 位 ARM 真机（你的手机可以），不能装 x86 模拟器。
 
-三、WebDAV uploadFile 目录自动创建（修复 403/目录不存在）
-  lib/app/handlers/storage/storage_client.dart         接口加 createDir 参数
-  lib/app/handlers/storage/web_dav_client.dart         PUT 失败级联建目录重试
-  lib/app/handlers/storage/aliyun_oss_client.dart      同步签名
-  lib/app/handlers/storage/s3_client.dart              同步签名
-  test/app/handlers/storage/storage_client_test.dart   配套测试（不影响打包）
-
-四、发送/接收进度保留 + 失败/空发送可重发（新功能）
-  lib/app/data/models/syncing_file.dart                recordKey/错误信息/重发上下文
-  lib/app/services/syncing_file_progress_service.dart  唯一键存储、retry、完成记录保留
-  lib/app/handlers/sync/file_sync_handler.dart         空发送标记失败、可重发
-  lib/app/services/transport/storage_service.dart      发送记录绑定设备、失败可重发
-  lib/app/widgets/sync_file_status.dart                停止/移除/重发按钮、失败原因 Tooltip
-  lib/app/modules/sync_file_module/sync_file_controller.dart 记录保留、清空已结束
-  lib/app/modules/sync_file_module/sync_file_page.dart  「清空已结束记录」操作条
-
-五、翻译（以上功能全部文案，zh/en）
-  lib/app/data/enums/translation_key.dart
-  lib/app/translations/zh_cn_translations.dart
-  lib/app/translations/en_us_translations.dart
-
-六、Android 签名自动回退
-  android/app/build.gradle
-  有 key.properties 用正式签名；没有则自动用 debug 签名，保证任何环境
-  都能构建出可安装的 APK（替代你之前手动注释签名的写法）。
-  注意：debug 签名每次构建环境可能不同，换机器构建后升级安装需先卸载旧版。
-
-【可选】NDK 版本警告（非致命）
-  日志中 "configured with Android NDK 28.0.13004108, but ..." 只是警告。
-  想消除可在 android/app/build.gradle 的 android{ } 中设
-  ndkVersion = "28.2.13676358"。
-
-【重要】构建标记（v3, 2026-09-05）
-  为确认安装的 APK 是否包含本次"进度保留+重发"修复，新增两条日志标记：
-  1. App 启动时打印:  [BuildMarker] | records-resend-v3 build 2026-09-05
-     （位于 syncing_file_progress_service.dart 的 init）
-  2. 每次发送文件时打印:  send record created: <recordKey>
-     （位于 file_sync_handler.dart 发送记录创建处）
-  验证方法：重新构建安装后，发送一个文件，然后在日志文件里搜索
-  "records-resend-v3" 或 "send record created"。
-  - 搜不到 => 构建用的源码不含本次修复（检查是否替换/提交到位、
-    CI 是否构建成功、安装的是否为最新 APK）。
-  - 搜得到但界面无记录 => 请把该日志发来，属界面显示问题，另行修复。
-
-========================================
-【2026-09-05 v2 修复】编译错误修复
-========================================
-问题：device_controller.dart:677 对返回 void 的
-      storageService.disconnectDevice() 使用了 unawaited()，
-      导致 CI 构建失败：
-      "This expression has type 'void' and can't be used"
-修复：去掉 unawaited 包装，改为直接调用。
-      （unawaited(sktService.disconnectDevice(...)) 保留，
-        因为 SocketService 版本返回 Future<bool>，合法。）
-
-【重要】本次请用整包替换后直接重新构建，
-      不要再回退/删改任何文件。构建成功后日志中应出现：
-      [BuildMarker] | records-resend-v3 build 2026-09-05
+3. 本包 lib 全部 Dart 代码已用与 CI 相同的工具链
+   （Flutter 3.41.9 / Dart 3.11.5）完整执行过 CI 失败的
+   kernel_snapshot_program 编译步骤，编译通过、无错误。
+   若你的构建仍失败，请把完整报错贴出来。

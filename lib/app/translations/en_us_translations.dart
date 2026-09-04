@@ -796,6 +796,8 @@ class EnUSTranslation extends AbstractTranslations {
         return "Failed";
       case TranslationKey.resend:
         return "Resend";
+      case TranslationKey.resendConfirm:
+        return "Resend this file?";
       case TranslationKey.sendFileFailed:
         return "Send failed";
       case TranslationKey.sendFileNoReceiver:
