@@ -171,59 +171,20 @@ class SyncFileStatus extends StatelessWidget {
                                   ),
                                 ),
                               ),
-                              // 传输中：停止（取消并移除记录）
                               Visibility(
-                                visible: !isLocal &&
-                                    (syncingFile.state == SyncingFileState.wait ||
-                                        syncingFile.state == SyncingFileState.syncing),
+                                visible: !isLocal,
                                 child: Tooltip(
                                   message: TranslationKey.stop.tr,
                                   child: IconButton(
                                     onPressed: () async {
                                       syncingFile.close(false);
                                       syncingFileService.removeSyncingFile(
-                                        syncingFile.recordKey,
+                                        syncingFile.filePath,
                                       );
                                     },
                                     icon: const Icon(
                                       color: Colors.red,
                                       Icons.stop_circle_outlined,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              // 已结束（成功/失败）：仅从进度列表移除记录
-                              Visibility(
-                                visible: !isLocal &&
-                                    (syncingFile.state == SyncingFileState.done ||
-                                        syncingFile.state == SyncingFileState.error),
-                                child: Tooltip(
-                                  message: TranslationKey.delete.tr,
-                                  child: IconButton(
-                                    onPressed: () async {
-                                      syncingFileService.removeSyncingFile(
-                                        syncingFile.recordKey,
-                                      );
-                                    },
-                                    icon: const Icon(
-                                      color: Colors.blueGrey,
-                                      Icons.remove_circle_outline,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              // 发送失败 / 空发送：提供重发按钮
-                              Visibility(
-                                visible: !isLocal && syncingFile.canRetry,
-                                child: Tooltip(
-                                  message: TranslationKey.resend.tr,
-                                  child: IconButton(
-                                    onPressed: () async {
-                                      await syncingFile.retry();
-                                    },
-                                    icon: const Icon(
-                                      color: Colors.orange,
-                                      Icons.refresh,
                                     ),
                                   ),
                                 ),
@@ -304,11 +265,8 @@ class SyncFileStatus extends StatelessWidget {
                                         ),
                                         Visibility(
                                           visible: !isLocal,
-                                          child: Tooltip(
-                                            message: syncingFile.error ?? TranslationKey.failed.tr,
-                                            child: Text(
-                                              syncingFile.state == SyncingFileState.error ? TranslationKey.failed.tr : "${(factor * 10000).round() / 100}%",
-                                            ),
+                                          child: Text(
+                                            syncingFile.state == SyncingFileState.error ? TranslationKey.failed.tr : "${(factor * 10000).round() / 100}%",
                                           ),
                                         ),
                                         Row(

@@ -56,21 +56,17 @@ class FileSyncHandler {
   late final BuildContext context;
   late final void Function() _onDone;
   late final bool isUri;
-  late final Device _device;
-  late final SyncingFile _sendRecord;
 
   FileSyncHandler._private({
     required this.pendingFile,
     required void Function(FileSyncHandler) onReady,
     required void Function() onDone,
     required this.context,
-    required Device device,
     bool useForward = false,
     String? targetDevId,
   }) {
     _fileId = appConfig.snowflake.nextId();
     _onDone = onDone;
-    _device = device;
     isUri = pendingFile.isUri;
     if (!isUri) {
       final path = pendingFile.filePath;
@@ -79,23 +75,6 @@ class FileSyncHandler {
         throw Exception("file not found: $path");
       }
     }
-    // 发送记录在传输开始前就创建，保证“空发送”（对方未连接/离线）也能留下记录并可重发。
-    _sendRecord = _createSendRecord();
-    syncingFileService.updateSyncingFile(_sendRecord);
-    try {
-      _startTransfer(useForward: useForward, targetDevId: targetDevId, onReady: onReady);
-    } catch (err, stack) {
-      _sendRecord.setError(err.toString());
-      _sendRecord.setState(SyncingFileState.error);
-      logger.error(tag, "start send failed: $err $stack");
-    }
-  }
-
-  void _startTransfer({
-    required bool useForward,
-    required String? targetDevId,
-    required void Function(FileSyncHandler) onReady,
-  }) {
     if (useForward) {
       //检查中转设置
       var host = sktService.forwardServerHost;
@@ -179,45 +158,27 @@ class FileSyncHandler {
     }
   }
 
-  /// 创建（或重建）本次发送的进度记录，并绑定重发上下文。
-  SyncingFile _createSendRecord() {
-    final filePath = isUri ? pendingFile.filePath : _file!.normalizePath;
-    final fileSize = isUri ? pendingFile.size! : _file!.lengthSync();
-    final record = SyncingFile(
-      totalSize: fileSize,
-      context: context,
-      filePath: filePath,
-      fromDev: _device,
-      isSender: true,
-      startTime: DateTime.now().format(),
-      recordKey: "${_fileId}_$filePath",
-    );
-    record.setRetryContext(files: [pendingFile], device: _device);
-    record.setRetry(() async {
-      // 重发：移除旧记录后重新发起一次发送（会创建新的进度记录）。
-      syncingFileService.removeSyncingFile(record.recordKey);
-      FileSyncHandler.sendFiles(
-        devices: [_device],
-        files: [pendingFile],
-        context: context,
-      );
-    });
-    return record;
-  }
-
   ///向 socket 发送文件
   Future<void> sendFile2Socket(Socket client) async {
     DateTime start = DateTime.now();
     final filePath = isUri ? pendingFile.filePath : _file!.normalizePath;
     final fileSize = isUri ? pendingFile.size! : _file!.lengthSync();
     final fileName = isUri ? pendingFile.fileName : _file!.fileName;
-    final syncingFile = _sendRecord;
-    // 手动停止时销毁底层 socket，避免连接泄漏（记录本身由停止按钮移除）。
-    syncingFile.onClose = (done) {
-      if (!done) {
+    final syncingFile = SyncingFile(
+      totalSize: fileSize,
+      context: context,
+      filePath: filePath,
+      fromDev: appConfig.device,
+      isSender: true,
+      startTime: DateTime.now().format(),
+      onClose: (done) {
+        if (done) {
+          return;
+        }
         client.destroy();
-      }
-    };
+        syncingFileService.removeSyncingFile(filePath);
+      },
+    );
     syncingFileService.updateSyncingFile(syncingFile);
     Stream<List<int>> stream;
     if (isUri) {
@@ -269,7 +230,6 @@ class FileSyncHandler {
           syncingFile.setState(SyncingFileState.done);
         })
         .catchError((err, stack) {
-          syncingFile.setError(err.toString());
           syncingFile.setState(SyncingFileState.error);
           logger.error(tag, "send file failed: $filePath. $err $stack");
         })
@@ -286,9 +246,6 @@ class FileSyncHandler {
     Future.delayed(5.s, () {
       if (hasClient) return;
       logger.info(tag, "No client connection for more than 5 seconds");
-      // 空发送：对方未连接/离线，标记为失败并允许在进度界面重发。
-      _sendRecord.setError(TranslationKey.sendFileNoReceiver.tr);
-      _sendRecord.setState(SyncingFileState.error);
       _server?.close();
       _forwardSkt?.close();
       onDone();
@@ -419,7 +376,6 @@ class FileSyncHandler {
       FileSyncHandler._private(
         pendingFile: pendingFile,
         context: context,
-        device: device,
         useForward: useForward,
         targetDevId: useForward ? device.guid : null,
         onReady: (syncer) async {

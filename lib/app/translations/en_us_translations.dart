@@ -112,16 +112,6 @@ class EnUSTranslation extends AbstractTranslations {
         return "Add Device Manually";
       case TranslationKey.devicePageStopDiscoveringTooltip:
         return "Stop Discovering";
-      case TranslationKey.devicePageDisable:
-        return "Disable";
-      case TranslationKey.devicePageEnable:
-        return "Enable";
-      case TranslationKey.devicePageDisableDialogContent:
-        return "After disabling, this device will no longer auto-reconnect (even after screen off/on). Disable this device?";
-      case TranslationKey.devicePageDisableReconnectHint:
-        return "This device is disabled. Please enable it before reconnecting.";
-      case TranslationKey.deviceDisabled:
-        return "Disabled";
       case TranslationKey.sms:
         return "SMS";
       case TranslationKey.homeAppBarSyncingProgressText:
@@ -794,14 +784,6 @@ class EnUSTranslation extends AbstractTranslations {
         return "Stop";
       case TranslationKey.failed:
         return "Failed";
-      case TranslationKey.resend:
-        return "Resend";
-      case TranslationKey.sendFileFailed:
-        return "Send failed";
-      case TranslationKey.sendFileNoReceiver:
-        return "Receiver not connected (empty send)";
-      case TranslationKey.clearFinishedRecords:
-        return "Clear finished records";
       case TranslationKey.pleaseInputKey:
         return "Please Enter Key";
       case TranslationKey.forwardServerUnlimitedDevices:
