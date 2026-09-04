@@ -242,8 +242,15 @@ class SyncFilePage extends GetView<SyncFileController> {
               Obx(
                 () => Visibility(
                   visible: controller.recList.isEmpty,
-                  replacement: ListView(
-                    children: controller.recList,
+                  replacement: Column(
+                    children: [
+                      _buildClearBar(sender: false),
+                      Expanded(
+                        child: ListView(
+                          children: controller.recList,
+                        ),
+                      ),
+                    ],
                   ),
                   child: controller.emptyContent,
                 ),
@@ -251,8 +258,15 @@ class SyncFilePage extends GetView<SyncFileController> {
               Obx(
                 () => Visibility(
                   visible: controller.sendList.isEmpty,
-                  replacement: ListView(
-                    children: controller.sendList,
+                  replacement: Column(
+                    children: [
+                      _buildClearBar(sender: true),
+                      Expanded(
+                        child: ListView(
+                          children: controller.sendList,
+                        ),
+                      ),
+                    ],
                   ),
                   child: controller.emptyContent,
                 ),
@@ -293,5 +307,25 @@ class SyncFilePage extends GetView<SyncFileController> {
     }
     controller.cancelSelectionMode();
     appConfig.disableMultiSelectionMode(true);
+  }
+
+  /// 发送/接收列表顶部的“清空已结束记录”操作条。
+  Widget _buildClearBar({required bool sender}) {
+    return Obx(() {
+      // 依赖 observable 以在记录状态变化时刷新按钮可见性
+      final hasFinished = controller.hasFinishedRecords(sender: sender);
+      if (!hasFinished) return const SizedBox(height: 4);
+      return Align(
+        alignment: Alignment.centerRight,
+        child: Padding(
+          padding: const EdgeInsets.only(right: 8, top: 4, bottom: 4),
+          child: TextButton.icon(
+            onPressed: () => controller.clearFinishedRecords(sender: sender),
+            icon: const Icon(Icons.clear_all, size: 18),
+            label: Text(TranslationKey.clearFinishedRecords.tr),
+          ),
+        ),
+      );
+    });
   }
 }

@@ -1116,8 +1116,9 @@ class StorageService extends GetxService
       return false;
     }
     final devController = Get.find<DeviceController>();
-    //获取已配对且离线的设备
+    //获取已配对且离线的设备（排除禁用设备）
     var offlineAndPairedList = devController.offlineAndPairedList
+        .where((dev) => !dev.isDisabled)
         .map((item) => item.guid)
         .toSet();
     //执行连接操作
@@ -1149,6 +1150,12 @@ class StorageService extends GetxService
   Future<void> _connectDevice(String devId) async {
     if (_client == null) {
       logger.warn(tag, "_connectDevice storage client is null");
+      return;
+    }
+    // 禁用设备不参与自动连接
+    final dbDev = await dbService.deviceDao.getById(devId, appConfig.userId);
+    if (dbDev != null && dbDev.isDisabled) {
+      logger.debug(tag, "_connectDevice skipped because device is disabled. targetDevId=$devId");
       return;
     }
     final device = await getDeviceInfoFromCloud(devId);
@@ -1681,7 +1688,14 @@ class StorageService extends GetxService
       filePath: filePath,
       fromDev: appConfig.device,
       isSender: true,
+      recordKey: "${id}_$filePath",
     );
+    // 绑定重发上下文：重发时重新走一次存储中转发送。
+    syncingFile.setRetryContext(files: [], device: appConfig.device);
+    syncingFile.setRetry(() async {
+      syncingFileService.removeSyncingFile(syncingFile.recordKey);
+      await sendData(dev, MsgType.file, Map<String, dynamic>.from(data));
+    });
     syncingFileService.updateSyncingFile(syncingFile);
     void onStorageProgressSync(int count, int total) {
       if (syncingFile.state != SyncingFileState.syncing) {
@@ -1732,7 +1746,7 @@ class StorageService extends GetxService
           tag,
           "sync file failed. size ${fileBytes.length} != $size. path = $filePath, storagePath = $storageFilePath",
         );
-        syncingFile.setState(SyncingFileState.error);
+        syncingFile.markSendFailed(TranslationKey.sendFileFailed.tr);
         return;
       }
       syncingFile.setState(SyncingFileState.syncing);
@@ -1748,7 +1762,7 @@ class StorageService extends GetxService
           tag,
           "sync file failed. path = $filePath, storagePath = $storageFilePath",
         );
-        syncingFile.setState(SyncingFileState.error);
+        syncingFile.markSendFailed(TranslationKey.sendFileFailed.tr);
       } else {
         final fileInfoCreated = await client.createFile(
           storageFileInfoPath,
@@ -1761,6 +1775,7 @@ class StorageService extends GetxService
             tag,
             "sync file info failed. path = $storageFileInfoPath. filePath = $filePath",
           );
+          syncingFile.markSendFailed(TranslationKey.sendFileFailed.tr);
           return;
         }
         // Only add the local history once for URI files to avoid duplicate records.
@@ -1782,7 +1797,7 @@ class StorageService extends GetxService
                 tag,
                 "sync file failed. size ${fileBytes.length} != $size. path = $filePath, storagePath = $storageFilePath",
               );
-              syncingFile.setState(SyncingFileState.error);
+              syncingFile.markSendFailed(TranslationKey.sendFileFailed.tr);
               return;
             }
             syncingFile.setState(SyncingFileState.syncing);
@@ -1845,7 +1860,7 @@ class StorageService extends GetxService
           tag,
           "sync file failed. path = $filePath, storagePath = $storageFilePath",
         );
-        syncingFile.setState(SyncingFileState.error);
+        syncingFile.markSendFailed(TranslationKey.sendFileFailed.tr);
       } else {
         //上传文件信息
         final result = await client.createFile(
@@ -1859,6 +1874,7 @@ class StorageService extends GetxService
             tag,
             "sync file info failed. path = $storageFileInfoPath. filePath = $filePath",
           );
+          syncingFile.markSendFailed(TranslationKey.sendFileFailed.tr);
           return;
         }
         //本地写入记录

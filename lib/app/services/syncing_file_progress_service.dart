@@ -6,6 +6,8 @@ import 'package:clipshare/app/modules/sync_file_module/sync_file_controller.dart
 import 'package:get/get.dart';
 
 class SyncingFileProgressService extends GetxService {
+  /// 以 [SyncingFile.recordKey] 为键。发送记录使用唯一键，
+  /// 因此同一文件发给多个设备、或失败后重发，都不会相互覆盖。
   final _syncingFilesMap = <String, SyncingFile>{}.obs;
 
   Future<SyncingFileProgressService> init() async {
@@ -13,15 +15,23 @@ class SyncingFileProgressService extends GetxService {
   }
 
   void updateSyncingFile(SyncingFile syncingFile) {
-    _syncingFilesMap[syncingFile.filePath] = syncingFile;
+    _syncingFilesMap[syncingFile.recordKey] = syncingFile;
     _postHandle(syncingFile);
   }
 
-  void removeSyncingFile(String filePath) {
-    if (!_syncingFilesMap.containsKey(filePath)) return;
-    var syncingFile = _syncingFilesMap[filePath];
-    _syncingFilesMap.remove(filePath);
+  void removeSyncingFile(String recordKey) {
+    if (!_syncingFilesMap.containsKey(recordKey)) return;
+    var syncingFile = _syncingFilesMap[recordKey];
+    _syncingFilesMap.remove(recordKey);
     _postHandle(syncingFile!);
+  }
+
+  /// 重发一条发送记录。找不到记录或该记录不支持重发时返回 false。
+  Future<bool> retry(String recordKey) async {
+    final syncingFile = _syncingFilesMap[recordKey];
+    if (syncingFile == null || !syncingFile.canRetry) return false;
+    await syncingFile.retry();
+    return true;
   }
 
   void clearAll() {
@@ -32,6 +42,7 @@ class SyncingFileProgressService extends GetxService {
     var isSender = syncingFile.isSender;
     switch (syncingFile.state) {
       case SyncingFileState.error:
+        // 仅接收端失败时删除写坏的本地文件；发送端保留记录以便重发。
         if (isSender) break;
         File(syncingFile.filePath).delete();
         break;
