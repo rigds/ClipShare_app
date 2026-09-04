@@ -91,9 +91,6 @@ Future<void> main(List<String> args) async {
         } else {
           await ensureInitialized();
           await initMainServices();
-          // 构建标记：用于确认设备上运行的是包含发送记录/重发逻辑的新代码。
-          // 若日志中看不到本行，说明安装的 APK 仍是旧构建。
-          logger.info("BuildMarker", "build-marker: resend-v5 2026-09-04 (send-record + retry + retry-confirm-dialog)");
           runMain(home, title, null);
         }
       } catch (err, stack) {

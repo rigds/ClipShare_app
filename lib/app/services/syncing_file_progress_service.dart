@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:clipshare/app/data/enums/syncing_file_state.dart';
 import 'package:clipshare/app/data/models/syncing_file.dart';
 import 'package:clipshare/app/modules/sync_file_module/sync_file_controller.dart';
-import 'package:clipshare/app/utils/log.dart';
 import 'package:get/get.dart';
 
 class SyncingFileProgressService extends GetxService {
@@ -12,9 +11,6 @@ class SyncingFileProgressService extends GetxService {
   final _syncingFilesMap = <String, SyncingFile>{}.obs;
 
   Future<SyncingFileProgressService> init() async {
-    // 构建标记：用于从日志确认安装的 APK 是否包含"进度保留+重发"功能。
-    // 若日志中看不到本行，说明构建源码未包含修复文件。
-    logger.info("BuildMarker", "records-resend-v3 build 2026-09-05");
     return this;
   }
 
@@ -62,6 +58,11 @@ class SyncingFileProgressService extends GetxService {
     final list = _syncingFilesMap.values.toList();
     list.sort((a, b) {
       if (a.state == b.state) {
+        // 与历史列表一致：新记录排在上面
+        final byTime = b.startTime.compareTo(a.startTime);
+        if (byTime != 0) {
+          return byTime;
+        }
         return a.fromDev.name.compareTo(b.fromDev.name);
       }
       return a.state.order.compareTo(b.state.order);

@@ -82,14 +82,11 @@ class FileSyncHandler {
     // 发送记录在传输开始前就创建，保证“空发送”（对方未连接/离线）也能留下记录并可重发。
     _sendRecord = _createSendRecord();
     syncingFileService.updateSyncingFile(_sendRecord);
-    // 构建标记：每次发送都会打印本行。日志里看不到 = 安装的 APK 不含新代码。
-    logger.info(tag, "send record created: ${_sendRecord.recordKey}");
     try {
       _startTransfer(useForward: useForward, targetDevId: targetDevId, onReady: onReady);
-    } catch (err, stack) {
+    } catch (err) {
       _sendRecord.setError(err.toString());
       _sendRecord.setState(SyncingFileState.error);
-      logger.error(tag, "start send failed: $err $stack");
     }
   }
 

@@ -1,55 +1,43 @@
-========================================
-ClipShare 最终完整版（基于你提供的 ClipShare-master (3).zip）
-========================================
+ClipShare-master 最终修复包
+生成时间: 2026-09-04 18:30
+基于: 你上传的完整 ClipShare-master（保留你的 gradle.properties 等本地配置）
 
-【本包内容】
-以你的完整源码为基础，替换了 19 个修复文件，其余文件与你的包完全一致。
-你的 android/gradle.properties（含 kotlin.incremental=false）已保留未动。
+【功能修复清单】
+1. 息屏断连修复
+   亮屏时若通知服务 WebSocket 已死/半开才重连，健康则跳过
+   （storage_ws_service.dart 新增 isHealthy；storage_service.dart 重写 onScreenOpened）。
 
-【上次构建失败原因回顾】
-storage_service.dart 引用了 Device.isDisabled（禁用设备功能），
-但 device.dart / device_dao.dart / db_service.dart / app_db.floor.g.dart
-等配套文件未一起替换 → 编译错误。本包已包含全部配套文件，整体替换即可。
+2. WebDAV 上传目录自动创建
+   uploadFile 遇目标目录不存在时自动级联创建并重试，不再 403。
+   涉及 storage_client.dart / web_dav_client.dart / aliyun_oss_client.dart /
+   s3_client.dart / storage_service.dart。
 
-【使用方式】
-用本包整个替换项目目录后直接构建：
-    flutter pub get
-    flutter build apk --release
-APK 输出：build/app/outputs/flutter-apk/app-release.apk
+3. 发送/接收进度记录保留 + 失败重发
+   - 发送记录在传输开始前创建：对方未连接/离线也会留下"空发送"失败记录
+   - done/error 记录保留在进度页，可点"清空已结束记录"批量清除
+   - 失败/空发送记录显示红色错误原因 + 🔄重发按钮
+   - 重发前弹确认框（显示文件名与目标设备），确认后才发送
+   - 记录按"同一状态内新记录排在上面"排序，与历史列表一致
+   涉及 syncing_file.dart / syncing_file_progress_service.dart /
+   file_sync_handler.dart / storage_service.dart / sync_file_controller.dart /
+   sync_file_page.dart / sync_file_status.dart / translation_key.dart /
+   zh_cn_translations.dart / en_us_translations.dart。
 
-------------------------------------------------
-本包包含的全部修复（相对上游原版共 20 个文件）
-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-v3 新增（2026-09-04 17:40）
-------------------------------------------------
-重发按钮增加确认弹窗：
-  点击进度页的"重发"图标后，先弹出确认框
-  （标题：重发；内容：确定要重新发送该文件吗？+ 文件名 -> 目标设备），
-  点"确定"才真正重发，点"取消"不做任何操作。
-涉及文件（4 个）：
-  lib/app/widgets/sync_file_status.dart        重发按钮改为先弹确认框
-  lib/app/data/enums/translation_key.dart      新增 resendConfirm
-  lib/app/translations/zh_cn_translations.dart 中文文案
-  lib/app/translations/en_us_translations.dart 英文文案
+4. 设备"禁用"功能
+   设备卡片可禁用某设备，禁用后不参与自动连接与发送。
+   涉及 device.dart / device_dao.dart / app_db.floor.g.dart / db_service.dart /
+   device_controller.dart / device_card.dart / socket_service.dart /
+   storage_service.dart。
 
-------------------------------------------------
-v2 新增（2026-09-04 17:15）
-------------------------------------------------
-1. lib/main.dart 新增构建标记日志（BuildMarker）：
-   应用启动时输出
-   "build-marker: resend-v5 2026-09-04 (send-record + retry + retry-confirm-dialog)"
-   查看日志文件（应用目录 files/日期.txt）搜索 BuildMarker：
-   - 能看到 → 运行的是新代码
-   - 看不到 → 安装的仍是旧 APK（构建未成功或未安装新包）
+5. Android 构建签名回退
+   android/app/build.gradle：存在 key.properties 且 storeFile 有效时用正式签名，
+   否则自动回退 debug 签名，无签名配置也能构建 release APK。
 
-2. 新增独立工作流 .github/workflows/build-android-arm64.yml：
-   只构建 arm64 单 ABI，AOT 编译(gen_snapshot)只跑 1 遍，CI 明显加快，
-   产物 app-arm64-v8a-release.apk 体积约为全 ABI 的 1/3。
-   原有 build-android.yml 和 scripts/build_apk.bat 均未改动、照常可用。
-   用法：GitHub Actions 页面手动运行 "build-android-apk-arm64"。
-   注意：此包只能装 64 位 ARM 真机（你的手机可以），不能装 x86 模拟器。
+6. CI 加速（可选）
+   .github/workflows/build-android-arm64.yml：只构建 arm64 单 ABI，
+   AOT 编译只跑一遍，产物更小更快。原 build-android.yml 未改动。
 
-3. 本包 lib 全部 Dart 代码已用与 CI 相同的工具链
-   （Flutter 3.41.9 / Dart 3.11.5）完整执行过 CI 失败的
-   kernel_snapshot_program 编译步骤，编译通过、无错误。
-   若你的构建仍失败，请把完整报错贴出来。
+【验证】
+lib 全部 Dart 代码已用与 CI 相同的工具链（Flutter 3.41.9 / Dart 3.11.5）
+完整执行 kernel_snapshot_program 编译，通过、无错误。
+调试/构建标记等临时代码已全部清除，与原版逐行核对。

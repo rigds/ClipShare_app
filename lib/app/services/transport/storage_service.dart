@@ -1155,7 +1155,6 @@ class StorageService extends GetxService
     // 禁用设备不参与自动连接
     final dbDev = await dbService.deviceDao.getById(devId, appConfig.userId);
     if (dbDev != null && dbDev.isDisabled) {
-      logger.debug(tag, "_connectDevice skipped because device is disabled. targetDevId=$devId");
       return;
     }
     final device = await getDeviceInfoFromCloud(devId);
