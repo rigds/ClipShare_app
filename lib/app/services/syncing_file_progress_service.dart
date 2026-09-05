@@ -2,14 +2,12 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:clipshare/app/data/enums/msg_type.dart';
 import 'package:clipshare/app/data/enums/syncing_file_state.dart';
 import 'package:clipshare/app/data/enums/translation_key.dart';
 import 'package:clipshare/app/data/models/syncing_file.dart';
 import 'package:clipshare/app/handlers/sync/file_sync_handler.dart';
 import 'package:clipshare/app/modules/sync_file_module/sync_file_controller.dart';
 import 'package:clipshare/app/services/config_service.dart';
-import 'package:clipshare/app/services/transport/storage_service.dart';
 import 'package:clipshare/app/utils/log.dart';
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
@@ -24,6 +22,8 @@ class SyncingFileProgressService extends GetxService {
   Timer? _saveTimer;
 
   Future<SyncingFileProgressService> init() async {
+    // 构建标记：日志中看不到本行，说明安装的 APK 未包含最新修复代码。
+    logger.info("BuildMarker", "records-resend-v4 build 2026-09-05 relay-retry");
     // 翻译在 GetMaterialApp 构建后才可用，恢复延后到首帧，避免中断提示存成原始 key。
     WidgetsBinding.instance.addPostFrameCallback((_) => _restore());
     return this;
@@ -133,12 +133,11 @@ class SyncingFileProgressService extends GetxService {
     final target = record.retryTarget;
     final data = record.retryData;
     if (target != null && data != null) {
-      // 存储中转路径：重发时重新走一次中转发送。
+      // 存储中转路径：重发时按设备当前连接状态重新选择路径（局域网直连优先）。
       record.setRetry(() async {
         removeSyncingFile(record.recordKey);
         try {
-          await Get.find<StorageService>()
-              .sendData(target, MsgType.file, Map<String, dynamic>.from(data));
+          await FileSyncHandler.retryRelayFile(target: target, data: data);
         } catch (err) {
           logger.error(tag, "retry relay send failed: $err");
         }

@@ -29,6 +29,7 @@ import 'package:clipshare/app/exceptions/different_storage_client_type_exception
 import 'package:clipshare/app/handlers/storage/storage_client.dart';
 import 'package:clipshare/app/handlers/storage/web_dav_client.dart';
 import 'package:clipshare/app/handlers/sync/abstract_data_sender.dart';
+import 'package:clipshare/app/handlers/sync/file_sync_handler.dart';
 import 'package:clipshare/app/handlers/sync/missing_data_sync_handler.dart';
 import 'package:clipshare/app/handlers/sync/storage_sync_record_helper.dart';
 import 'package:clipshare/app/listeners/dev_alive_listener.dart';
@@ -1681,12 +1682,12 @@ class StorageService extends GetxService
       isSender: true,
       recordKey: "${id}_$filePath",
     );
-    // 绑定重发上下文：重发时重新走一次存储中转发送。
+    // 绑定重发上下文：重发时按设备当前连接状态重新选择路径（局域网直连优先）。
     syncingFile.setRetryRelay(target: dev, data: data);
     syncingFile.setRetry(() async {
       syncingFileService.removeSyncingFile(syncingFile.recordKey);
       try {
-        await sendData(dev, MsgType.file, Map<String, dynamic>.from(data));
+        await FileSyncHandler.retryRelayFile(target: dev, data: data);
       } catch (err) {
         logger.error(tag, "retry relay send failed: $err");
       }

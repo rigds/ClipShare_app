@@ -8,6 +8,7 @@ import 'package:clipshare/app/data/enums/history_content_type.dart';
 import 'package:clipshare/app/data/enums/msg_type.dart';
 import 'package:clipshare/app/data/enums/notification_payload_type.dart';
 import 'package:clipshare/app/data/enums/syncing_file_state.dart';
+import 'package:clipshare/app/data/enums/transport_protocol.dart';
 import 'package:clipshare/app/data/enums/translation_key.dart';
 import 'package:clipshare/app/data/models/dev_info.dart';
 import 'package:clipshare/app/data/models/notification_payload.dart';
@@ -17,6 +18,7 @@ import 'package:clipshare/app/data/repository/entity/tables/device.dart';
 import 'package:clipshare/app/data/repository/entity/tables/history.dart';
 import 'package:clipshare/app/handlers/socket/forward_socket_client.dart';
 import 'package:clipshare/app/handlers/socket/secure_socket_client.dart';
+import 'package:clipshare/app/modules/device_module/device_controller.dart';
 import 'package:clipshare/app/modules/history_module/history_controller.dart';
 import 'package:clipshare/app/services/channels/android_channel.dart';
 import 'package:clipshare/app/services/config_service.dart';
@@ -335,6 +337,55 @@ class FileSyncHandler {
         i: i + 1,
       ),
     );
+  }
+
+  /// 中转发送记录的重发：按设备当前连接状态重新选择传输路径。
+  /// 若目标设备当前已处于局域网 socket 直连（direct），则改走 socket 直发重发，
+  /// 避免回到局域网后仍向公网 WebDAV 地址上传大文件（NAT 回环易被重置）；
+  /// 否则维持原存储中转路径。
+  static Future<void> retryRelayFile({
+    required DevInfo target,
+    required Map<String, dynamic> data,
+  }) async {
+    // 重发前校验：本地文件已被删除时，重建一条失败记录提示用户，
+    // 避免旧记录已被移除后重发静默失败、进度页什么都不剩。
+    final retryFilePath = data["filePath"] as String? ?? "";
+    final retryIsUri = data["isUri"] as bool? ?? false;
+    if (!retryIsUri &&
+        retryFilePath.isNotEmpty &&
+        !File(retryFilePath).existsSync()) {
+      logger.warn(tag, "retry relay file missing: $retryFilePath");
+      Get.find<SyncingFileProgressService>().updateSyncingFile(
+        SyncingFile(
+          totalSize: data["size"] as int? ?? 0,
+          filePath: retryFilePath,
+          fromDev: Get.find<ConfigService>().device,
+          isSender: true,
+          error: TranslationKey.noSuchFile.tr,
+          initialState: SyncingFileState.error,
+        ),
+      );
+      return;
+    }
+    final devController = Get.find<DeviceController>();
+    final card = [...devController.pairedList, ...devController.discoverList]
+        .firstWhereOrNull((item) => item.dev?.guid == target.guid && item.isConnected);
+    final device = card?.dev;
+    if (device != null && card!.protocol == TransportProtocol.direct) {
+      logger.info(tag, "retry relay file: ${device.devName} now direct-connected, resend via socket");
+      final pending = PendingFile(
+        isDirectory: false,
+        filePath: data["filePath"] as String,
+        directories: const [],
+        isUri: data["isUri"] as bool? ?? false,
+        fileName: data["fileName"] as String?,
+        size: data["size"] as int?,
+      );
+      sendFiles(devices: [device], files: [pending]);
+      return;
+    }
+    logger.info(tag, "retry relay file: ${target.name} not directly reachable, resend via storage relay");
+    await Get.find<StorageService>().sendData(target, MsgType.file, Map<String, dynamic>.from(data));
   }
 
   ///给设备发送多个文件
