@@ -752,12 +752,6 @@ class ZhCNTranslation extends AbstractTranslations {
         return "对方未连接（空发送）";
       case TranslationKey.clearFinishedRecords:
         return "清空已结束记录";
-      case TranslationKey.pauseSync:
-        return "暂停同步";
-      case TranslationKey.resumeSync:
-        return "恢复同步";
-      case TranslationKey.syncPausedBadge:
-        return "同步已暂停";
       case TranslationKey.pleaseInputKey:
         return "请输入密钥";
       case TranslationKey.forwardServerUnlimitedDevices:

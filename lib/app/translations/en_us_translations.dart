@@ -796,12 +796,6 @@ class EnUSTranslation extends AbstractTranslations {
         return "Receiver not connected (empty send)";
       case TranslationKey.clearFinishedRecords:
         return "Clear finished records";
-      case TranslationKey.pauseSync:
-        return "Pause sync";
-      case TranslationKey.resumeSync:
-        return "Resume sync";
-      case TranslationKey.syncPausedBadge:
-        return "Sync paused";
       case TranslationKey.pleaseInputKey:
         return "Please Enter Key";
       case TranslationKey.forwardServerUnlimitedDevices:

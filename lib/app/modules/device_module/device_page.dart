@@ -93,42 +93,17 @@ class DevicePage extends GetView<DeviceController> {
                                   selectedColor: isDark ? theme.colorScheme.onSurface : Colors.blue,
                                   unselectedColor: theme.colorScheme.onSurface.withValues(alpha: isDark ? 0.62 : 0.70),
                                 ),
-                              ],
-                            ),
-                            //暂停同步开关：暂停时本机新内容不上传，收到的内容不自动写入剪贴板
-                            Obx(
-                              () {
-                                final paused = appConfig.syncPaused;
-                                return Tooltip(
-                                  message: (paused ? TranslationKey.resumeSync : TranslationKey.pauseSync).tr,
-                                  child: InkWell(
-                                    mouseCursor: SystemMouseCursors.click,
-                                    borderRadius: BorderRadius.circular(14),
-                                    onTap: () => appConfig.setSyncPaused(!paused),
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                                      child: Row(
-                                        children: [
-                                          Icon(
-                                            paused ? Icons.play_circle_filled : Icons.pause_circle_filled,
-                                            size: 18,
-                                            color: paused
-                                                ? Colors.orange
-                                                : theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                                          ),
-                                          if (paused) ...[
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              TranslationKey.syncPausedBadge.tr,
-                                              style: const TextStyle(fontSize: 12, color: Colors.orange),
-                                            ),
-                                          ],
-                                        ],
-                                      ),
+                                //暂停同步开关：开=同步中，关=已暂停（本机新内容不上传，收到内容不自动写入剪贴板）
+                                Obx(
+                                  () => Transform.scale(
+                                    scale: 0.72,
+                                    child: Switch(
+                                      value: !appConfig.syncPaused,
+                                      onChanged: (v) => appConfig.setSyncPaused(!v),
                                     ),
                                   ),
-                                );
-                              },
+                                ),
+                              ],
                             ),
                             Obx(
                               () => Offstage(
