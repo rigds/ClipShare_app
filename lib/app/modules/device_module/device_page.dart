@@ -95,11 +95,14 @@ class DevicePage extends GetView<DeviceController> {
                                 ),
                                 //暂停同步开关：开=同步中，关=已暂停（本机新内容不上传，收到内容不自动写入剪贴板）
                                 Obx(
-                                  () => Transform.scale(
-                                    scale: 0.72,
-                                    child: Switch(
-                                      value: !appConfig.syncPaused,
-                                      onChanged: (v) => appConfig.setSyncPaused(!v),
+                                  () => SizedBox(
+                                    height: 24,
+                                    child: FittedBox(
+                                      fit: BoxFit.contain,
+                                      child: Switch(
+                                        value: !appConfig.syncPaused,
+                                        onChanged: (v) => appConfig.setSyncPaused(!v),
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -118,7 +121,14 @@ class DevicePage extends GetView<DeviceController> {
                                         color: controller.forwardStatus.value.color,
                                       ),
                                     ),
-                                    Text(TranslationKey.devicePageForwardServerText.tr),
+                                    Text(
+                                      TranslationKey.devicePageForwardServerText.tr,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: theme.colorScheme.onSurfaceVariant,
+                                        height: 1,
+                                      ),
+                                    ),
                                     const SizedBox(width: 10),
                                   ],
                                 ),
