@@ -167,7 +167,6 @@ Future<void> initMainServices() async {
   await appConfig.initPath();
   await Get.putAsync(() => DbService().init(), permanent: true);
   await appConfig.init();
-  logger.info("BuildMarker", "build-marker: resend-v6 2026-09-05 (send-record + retry + retry-confirm-dialog + persistence)");
   await Get.putAsync(() => DeviceService().init(), permanent: true);
   final connRegistryService = ConnectionRegistryService();
   final registry = connRegistryService.registry;

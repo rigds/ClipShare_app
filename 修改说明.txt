@@ -57,5 +57,27 @@ ClipShare-master 最终修复包
 【验证】
 lib 全部 Dart 代码已用与 CI 相同的工具链（Flutter 3.41.9 / Dart 3.11.5）
 完整执行 kernel_snapshot_program 编译，通过、无错误。
-构建标记: resend-v6（启动日志 BuildMarker 可见，用于确认运行的是新代码）
+临时代码已全部清除（构建标记 BuildMarker 已移除）。
 调试/构建标记等临时代码已全部清除，与原版逐行核对。
+
+## 设备禁用功能已完全移除（2026-09-05）
+按最终决定，"禁用设备"功能整体删除，代码回到无禁用状态：
+- 删除 Device 实体 isDisabled 字段、DeviceDao.updateDeviceDisabled、
+  device_card / device_controller 中全部禁用 UI 与逻辑、
+  socket_service / storage_service 中全部禁用检查、相关中英文翻译键。
+- 数据库版本 11 -> 12：新增迁移自动删除 Device 表 isDisabled 列
+  （带列存在性检查，新旧库升级均安全；设备配对数据不受影响）。
+- 顺带修复：此前 @Database 注解版本(11)与 floor.g.dart 生成代码版本(10)
+  不一致，导致 isDisabled 列迁移从未执行；本次统一为 12。
+其余功能（进度持久化、失败重发确认框、新记录排上方、息屏健康重连、
+WebDAV 自动建目录、签名回退）全部保留，不受影响。
+
+
+【2026-09-05】新增：全局"暂停同步"开关
+- 位置：我的设备页右上角（转发状态左侧）。灰色暂停图标=正常同步；点击后变橙色播放图标+“同步已暂停”文字。
+- 暂停时行为：
+  1. 本机新复制的内容不上传（不写同步队列、不写 WebDAV、不通知设备），恢复后也不会补传——关闭期间的隐私内容永不外流。
+  2. 收到的内容照常存入历史记录可查，但不自动写入本机剪贴板。
+  3. 文件传输、设备连接/配对、心跳在线状态完全不受影响。
+- 涉及文件：config_key.dart、config_service.dart、operation_record_dao.dart、history_controller.dart、device_page.dart、translation_key.dart、zh_cn_translations.dart、en_us_translations.dart
+- 配置为 key-value 存储，无需数据库版本升级，旧数据无损兼容。

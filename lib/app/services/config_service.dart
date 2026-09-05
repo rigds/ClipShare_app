@@ -431,6 +431,11 @@ class ConfigService extends GetxService {
 
   bool get enableForward => _enableForward.value;
 
+  //是否暂停同步：暂停时本机新内容不上传，收到的内容不自动写入剪贴板
+  late final RxBool _syncPaused;
+
+  bool get syncPaused => _syncPaused.value;
+
   //图片同步后自动复制
   late final RxBool _autoCopyImageAfterSync;
 
@@ -714,6 +719,7 @@ class ConfigService extends GetxService {
     _appRevalidateDuration = (await cfg.getConfigByKey(ConfigKey.appRevalidateDuration, 0)).obs;
     _appPassword = (await cfg.getConfigByKey<String?>(ConfigKey.appPassword, null)).obs;
     _enableForward = (await cfg.getConfigByKey(ConfigKey.enableForward, false)).obs;
+    _syncPaused = (await cfg.getConfigByKey(ConfigKey.syncPaused, false)).obs;
     _notificationServer.value = await cfg.getConfigByKey<String>(ConfigKey.notificationServer, Constants.defaultNotificationServer);
     _forwardWay.value = await cfg.getConfigByKey<ForwardWay>(
       ConfigKey.forwardWay,
@@ -1371,6 +1377,12 @@ class ConfigService extends GetxService {
   Future<void> setEnableForward(bool enableForward) async {
     await configDao.addOrUpdate(ConfigKey.enableForward, enableForward.toString());
     _enableForward.value = enableForward;
+  }
+
+  ///暂停/恢复同步
+  Future<void> setSyncPaused(bool syncPaused) async {
+    await configDao.addOrUpdate(ConfigKey.syncPaused, syncPaused.toString());
+    _syncPaused.value = syncPaused;
   }
 
   Future<void> setForwardServer(ForwardServerConfig serverConfig) async {

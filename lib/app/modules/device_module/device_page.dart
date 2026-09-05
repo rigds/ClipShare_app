@@ -95,6 +95,41 @@ class DevicePage extends GetView<DeviceController> {
                                 ),
                               ],
                             ),
+                            //暂停同步开关：暂停时本机新内容不上传，收到的内容不自动写入剪贴板
+                            Obx(
+                              () {
+                                final paused = appConfig.syncPaused;
+                                return Tooltip(
+                                  message: (paused ? TranslationKey.resumeSync : TranslationKey.pauseSync).tr,
+                                  child: InkWell(
+                                    mouseCursor: SystemMouseCursors.click,
+                                    borderRadius: BorderRadius.circular(14),
+                                    onTap: () => appConfig.setSyncPaused(!paused),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            paused ? Icons.play_circle_filled : Icons.pause_circle_filled,
+                                            size: 18,
+                                            color: paused
+                                                ? Colors.orange
+                                                : theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                                          ),
+                                          if (paused) ...[
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              TranslationKey.syncPausedBadge.tr,
+                                              style: const TextStyle(fontSize: 12, color: Colors.orange),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
                             Obx(
                               () => Offstage(
                                 offstage: !appConfig.enableForward,

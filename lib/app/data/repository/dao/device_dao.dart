@@ -44,10 +44,4 @@ abstract class DeviceDao {
     "update device set internalAddress = :address where uid = :uid and guid = :guid",
   )
   Future<int?> updateDeviceInternalAddress(String guid, int uid, String address);
-
-  ///更新设备禁用状态
-  @Query(
-    "update device set isDisabled = :disabled where uid = :uid and guid = :guid",
-  )
-  Future<int?> updateDeviceDisabled(String guid, int uid, bool disabled);
 }

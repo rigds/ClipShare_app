@@ -59,7 +59,7 @@ const views = [VHistoryTagHold];
 ///
 /// 2. 直接执行 scripts/db_gen.bat 一键完成
 @Database(
-  version: 11,
+  version: 12,
   entities: tables,
   views: views,
 )
@@ -142,6 +142,7 @@ class DbService extends GetxService {
       migration8to9,
       migration9to10,
       migration10to11,
+      migration11to12,
     ]).build();
     version = await _db.database.database.getVersion();
     return this;
@@ -316,10 +317,18 @@ class DbService extends GetxService {
   });
 
   ///数据库版本 10 -> 11
-  ///Device 表新增 isDisabled 字段，支持禁用设备（息屏亮屏不自动重连）
+  ///（历史迁移，功能已移除但保留迁移链完整性；11->12 会把该列删掉）
   final migration10to11 = Migration(10, 11, (database) async {
     if (!await hasColumnInTable(database, 'Device', 'isDisabled')) {
       await database.execute("ALTER TABLE `Device` ADD COLUMN `isDisabled` INTEGER NOT NULL DEFAULT 0;");
+    }
+  });
+
+  ///数据库版本 11 -> 12
+  ///移除设备禁用功能，删除 Device 表的 isDisabled 列
+  final migration11to12 = Migration(11, 12, (database) async {
+    if (await hasColumnInTable(database, 'Device', 'isDisabled')) {
+      await database.execute("ALTER TABLE `Device` DROP COLUMN `isDisabled`;");
     }
   });
 }

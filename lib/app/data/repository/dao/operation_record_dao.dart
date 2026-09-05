@@ -4,6 +4,7 @@ import 'package:clipshare/app/data/enums/op_method.dart';
 import 'package:clipshare/app/handlers/sync/abstract_data_sender.dart';
 import 'package:clipshare/app/handlers/sync/missing_data_sync_handler.dart';
 import 'package:clipshare/app/services/clipboard_source_service.dart';
+import 'package:clipshare/app/services/config_service.dart';
 import 'package:clipshare/app/services/db_service.dart';
 import 'package:clipshare/app/services/transport/socket_service.dart';
 import 'package:clipshare/app/services/transport/storage_service.dart';
@@ -24,6 +25,10 @@ abstract class OperationRecordDao {
 
   ///添加操作记录并发送通知设备更改
   Future<int> addAndNotify(OperationRecord record) async {
+    //暂停同步：不记录同步操作、不上传，恢复后也不会补传（本地历史仍正常保存）
+    if (Get.find<ConfigService>().syncPaused) {
+      return 1;
+    }
     final cnt = await add(record);
     if (cnt == 0) return cnt;
     //发送变更至已连接的所有设备

@@ -305,7 +305,6 @@ class SocketService extends GetxService with ScreenOpenedObserver, DataSender {
       await client.close();
       return false;
     }
-
     // 登记前循环探活当前 session，处理候选握手期间已有新连接登记成功的竞态。
     while (true) {
       final current = _sessions.get(devId);
@@ -469,11 +468,6 @@ class SocketService extends GetxService with ScreenOpenedObserver, DataSender {
     var isPaired = device != null && device.isPaired;
     //未配对且不允许被发现，结束
     if (!appConfig.allowDiscover && !isPaired) {
-      return;
-    }
-    //禁用设备不接收广播连接
-    if (device != null && device.isDisabled) {
-      logger.debug(tag, "Broadcast connect skipped because device is disabled. device=${dev.name}");
       return;
     }
     //建立连接
@@ -1756,11 +1750,6 @@ class SocketService extends GetxService with ScreenOpenedObserver, DataSender {
     final dev = await dbService.deviceDao.getById(guid, appConfig.userId);
     if (dev == null) {
       logger.warn(tag, "Device $guid not found in db");
-      return;
-    }
-    // 禁用设备禁止自动重连
-    if (dev.isDisabled) {
-      logger.debug(tag, "Reconnect skipped because device is disabled. device=${dev.name}");
       return;
     }
     final deadline = DateTime.now().add(once ? Duration.zero : Constants.socketReconnectWindow);

@@ -387,6 +387,10 @@ class HistoryController extends GetxController with WidgetsBindingObserver imple
       //不可复制，跳过
       return;
     }
+    //暂停同步：数据仍会入库可查，但不自动写入本机剪贴板
+    if (appConfig.syncPaused) {
+      return;
+    }
     if (fromStorage) {
       var copy = false;
       if (type != ClipboardContentType.image || appConfig.autoCopyImageAfterSync) {
@@ -723,6 +727,11 @@ class HistoryController extends GetxController with WidgetsBindingObserver imple
             //不可复制，跳过
             break;
           }
+          //暂停同步：数据已入库可查，但不自动写入本机剪贴板
+          if (appConfig.syncPaused) {
+            _missingDataCopyMsg = null;
+            break;
+          }
 
           var copy = false;
           if (type != ClipboardContentType.image || appConfig.autoCopyImageAfterSync) {
@@ -943,7 +952,7 @@ class HistoryController extends GetxController with WidgetsBindingObserver imple
     _screenUnlocked = true;
     if (_syncDataOnScreenOff != null) {
       //已启用复制熄屏时的最新数据
-      if (appConfig.reCopyOnScreenUnlocked) {
+      if (appConfig.reCopyOnScreenUnlocked && !appConfig.syncPaused) {
         //复制熄屏时的数据
         _syncDataOnScreenOff?.copyContent();
       }

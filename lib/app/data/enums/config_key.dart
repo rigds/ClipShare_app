@@ -31,6 +31,7 @@ enum ConfigKey {
   appPassword,
   enableSmsSync,
   enableForward,
+  syncPaused,
   forwardServer,
   webdavConfig,
   s3Config,

@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:clipshare/app/data/enums/device_paried_filter_status.dart';
 import 'package:clipshare/app/data/enums/forward_server_status.dart';
 import 'package:clipshare/app/data/enums/module.dart';
@@ -127,7 +125,6 @@ class DeviceController extends GetxController with GetSingleTickerProviderStateM
             minVersion: null,
             version: null,
             protocol: TransportProtocol.direct,
-            isDisabled: dev.isDisabled,
           ),
         );
       }
@@ -272,7 +269,6 @@ class DeviceController extends GetxController with GetSingleTickerProviderStateM
           minVersion: minVersion,
           version: version,
           protocol: protocol,
-          isDisabled: displayDev.isDisabled,
           onTap: (device, isConnected, showReNameDlg) => _onDeviceCardTap(device, isConnected, showReNameDlg),
           onLongPress: (device, isConnected, showReNameDlg) => _onDeviceCardLongPress(device, isConnected, showReNameDlg),
         ),
@@ -434,7 +430,7 @@ class DeviceController extends GetxController with GetSingleTickerProviderStateM
       builder: (BuildContext context) {
         return SafeArea(
           child: Container(
-            height: 270,
+            height: 200,
             constraints: const BoxConstraints(minWidth: 500),
             child: Padding(
               padding: const EdgeInsets.all(5),
@@ -469,7 +465,6 @@ class DeviceController extends GetxController with GetSingleTickerProviderStateM
                       ],
                     ),
                   ),
-                  // 第一行按钮：重命名、禁用/启用、断开/重连
                   Row(
                     children: [
                       Expanded(
@@ -491,28 +486,6 @@ class DeviceController extends GetxController with GetSingleTickerProviderStateM
                       Expanded(
                         child: InkWell(
                           onTap: () {
-                            _toggleDeviceDisabled(device, context);
-                          },
-                          splashColor: Colors.black12,
-                          borderRadius: BorderRadius.circular(12),
-                          child: Padding(
-                            padding: const EdgeInsets.only(top: 5, bottom: 5),
-                            child: Column(
-                              children: [
-                                Icon(
-                                  device.isDisabled ? Icons.play_circle_outline : Icons.block,
-                                ),
-                                Text(
-                                  device.isDisabled ? TranslationKey.devicePageEnable.tr : TranslationKey.devicePageDisable.tr,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: InkWell(
-                          onTap: () {
                             var devInfo = DevInfo.fromDevice(device);
                             if (isConnected) {
                               if (protocol == TransportProtocol.webdav || protocol == TransportProtocol.s3) {
@@ -524,13 +497,6 @@ class DeviceController extends GetxController with GetSingleTickerProviderStateM
                                 );
                               }
                             } else {
-                              if (device.isDisabled) {
-                                Global.showTipsDialog(
-                                  context: context,
-                                  text: TranslationKey.devicePageDisableReconnectHint.tr,
-                                );
-                                return;
-                              }
                               if(protocol.isSocket){
                                 sktService.reconnectOnce(device.guid);
                               } else {
@@ -556,11 +522,6 @@ class DeviceController extends GetxController with GetSingleTickerProviderStateM
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                  // 第二行按钮：取消配对、同步数据
-                  Row(
-                    children: [
                       Expanded(
                         child: InkWell(
                           onTap: () {
@@ -638,46 +599,6 @@ class DeviceController extends GetxController with GetSingleTickerProviderStateM
         );
       },
     );
-  }
-
-  /// 切换设备禁用状态：禁用后息屏亮屏不再自动重连并立即断开连接；启用后恢复可连接状态。
-  Future<void> _toggleDeviceDisabled(Device device, BuildContext context) async {
-    final alreadyDisabled = device.isDisabled;
-    if (!alreadyDisabled) {
-      // 禁用前弹出确认对话框
-      final completer = Completer<bool>();
-      Global.showTipsDialog(
-        context: context,
-        text: TranslationKey.devicePageDisableDialogContent.tr,
-        showCancel: true,
-        onOk: () => completer.complete(true),
-        onCancel: () => completer.complete(false),
-      );
-      final confirmed = await completer.future;
-      if (!confirmed) return;
-    }
-    final newDisabled = !alreadyDisabled;
-    // 持久化到数据库
-    await dbService.deviceDao.updateDeviceDisabled(device.guid, appConfig.userId, newDisabled);
-    // 更新 pairedList 中的卡片状态
-    for (var i = 0; i < pairedList.length; i++) {
-      final card = pairedList[i];
-      if (card.dev?.guid == device.guid) {
-        pairedList[i] = card.copyWith(
-          isDisabled: newDisabled,
-          isConnected: newDisabled ? false : card.isConnected,
-        );
-        break;
-      }
-    }
-    // 禁用时断开当前连接
-    if (newDisabled) {
-      final devInfo = DevInfo.fromDevice(device);
-      unawaited(sktService.disconnectDevice(devInfo, true));
-      storageService.disconnectDevice(device.guid);
-    }
-    // 关闭底部弹窗
-    Navigator.pop(context);
   }
 
   ///取消配对
@@ -863,13 +784,11 @@ class DeviceController extends GetxController with GetSingleTickerProviderStateM
                 minVersion: null,
                 version: null,
                 protocol: dev.protocol,
-                isDisabled: dev.isDisabled,
               ))
           .copyWith(
         dev: dev,
         isPaired: true,
         isConnected: true,
-        isDisabled: dev.isDisabled,
         onTap: (device, isConnected, showReNameDlg) {
           if (PlatformExt.isDesktop) {
             _showBottomDetailSheet(

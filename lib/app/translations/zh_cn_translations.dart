@@ -112,16 +112,6 @@ class ZhCNTranslation extends AbstractTranslations {
         return "手动添加设备";
       case TranslationKey.devicePageStopDiscoveringTooltip:
         return "停止发现";
-      case TranslationKey.devicePageDisable:
-        return "禁用";
-      case TranslationKey.devicePageEnable:
-        return "启用";
-      case TranslationKey.devicePageDisableDialogContent:
-        return "禁用后该设备将不再自动重连（息屏再亮屏也不会重连），确定要禁用吗？";
-      case TranslationKey.devicePageDisableReconnectHint:
-        return "该设备已被禁用，请先启用后再重连";
-      case TranslationKey.deviceDisabled:
-        return "已禁用";
       case TranslationKey.sms:
         return "短信";
       case TranslationKey.homeAppBarSyncingProgressText:
@@ -762,6 +752,12 @@ class ZhCNTranslation extends AbstractTranslations {
         return "对方未连接（空发送）";
       case TranslationKey.clearFinishedRecords:
         return "清空已结束记录";
+      case TranslationKey.pauseSync:
+        return "暂停同步";
+      case TranslationKey.resumeSync:
+        return "恢复同步";
+      case TranslationKey.syncPausedBadge:
+        return "同步已暂停";
       case TranslationKey.pleaseInputKey:
         return "请输入密钥";
       case TranslationKey.forwardServerUnlimitedDevices:
