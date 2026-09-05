@@ -800,7 +800,6 @@ class SocketService extends GetxService with ScreenOpenedObserver, DataSender {
             devId: targetId,
             userId: userId,
             fileId: fileId,
-            context: Get.context!,
             targetId: targetId,
           );
         } catch (err, stack) {
@@ -1007,7 +1006,6 @@ class SocketService extends GetxService with ScreenOpenedObserver, DataSender {
             devId: msg.send.guid,
             userId: msg.userId,
             fileId: fileId,
-            context: Get.context!,
           );
         } catch (err, stack) {
           logger.debug(

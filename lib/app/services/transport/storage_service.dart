@@ -1443,7 +1443,6 @@ class StorageService extends GetxService
       }
       syncingFile = SyncingFile(
         totalSize: size,
-        context: Get.context!,
         filePath: localPath,
         fromDev: dev,
         isSender: false,
@@ -1683,17 +1682,20 @@ class StorageService extends GetxService
     final syncingFileService = Get.find<SyncingFileProgressService>();
     final syncingFile = SyncingFile(
       totalSize: size,
-      context: Get.context!,
       filePath: filePath,
       fromDev: appConfig.device,
       isSender: true,
       recordKey: "${id}_$filePath",
     );
     // 绑定重发上下文：重发时重新走一次存储中转发送。
-    syncingFile.setRetryContext(files: [], device: appConfig.device);
+    syncingFile.setRetryRelay(target: dev, data: data);
     syncingFile.setRetry(() async {
       syncingFileService.removeSyncingFile(syncingFile.recordKey);
-      await sendData(dev, MsgType.file, Map<String, dynamic>.from(data));
+      try {
+        await sendData(dev, MsgType.file, Map<String, dynamic>.from(data));
+      } catch (err) {
+        logger.error(tag, "retry relay send failed: $err");
+      }
     });
     syncingFileService.updateSyncingFile(syncingFile);
     void onStorageProgressSync(int count, int total) {

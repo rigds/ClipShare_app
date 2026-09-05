@@ -19,4 +19,26 @@ class PendingFile {
   String toString() {
     return 'PendingFile{isDirectory: $isDirectory, filePath: $filePath, fileName: $fileName, size: $size, directories: $directories}, isUri $isUri';
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      "isDirectory": isDirectory,
+      "filePath": filePath,
+      "fileName": fileName,
+      "size": size,
+      "isUri": isUri,
+      "directories": directories,
+    };
+  }
+
+  factory PendingFile.fromJson(Map<String, dynamic> map) {
+    return PendingFile(
+      isDirectory: map["isDirectory"] as bool,
+      filePath: map["filePath"] as String,
+      directories: (map["directories"] as List?)?.cast<String>() ?? const [],
+      isUri: map["isUri"] as bool? ?? false,
+      fileName: map["fileName"] as String?,
+      size: map["size"] as int?,
+    );
+  }
 }

@@ -1,5 +1,5 @@
 ClipShare-master 最终修复包
-生成时间: 2026-09-04 18:30
+生成时间: 2026-09-05 04:55
 基于: 你上传的完整 ClipShare-master（保留你的 gradle.properties 等本地配置）
 
 【功能修复清单】
@@ -23,21 +23,39 @@ ClipShare-master 最终修复包
    sync_file_page.dart / sync_file_status.dart / translation_key.dart /
    zh_cn_translations.dart / en_us_translations.dart。
 
-4. 设备"禁用"功能
+4. 进度记录持久化（本轮新增）
+   - 发送/接收进度记录实时保存到本地文件 syncing_records.json（500ms 防抖写入）
+   - 杀后台/重启后记录不丢失：进行中的记录恢复为"失败(已中断)"，可重发
+   - 接收方记录重启后自动清除（无法续传）
+   - 重发按钮在恢复的记录上依然可用（回调自动重建）
+   - 新发送记录显示在列表上方（与历史列表一致）
+   涉及 syncing_file.dart / pending_file.dart /
+   syncing_file_progress_service.dart。
+
+5. 代码清理（本轮新增）
+   - 移除 SyncingFile 及整条调用链中未使用的 BuildContext 参数
+     （file_sync_handler / socket_service / splash_controller /
+     pending_file_service / storage_service / sync_file_status /
+     sync_file_controller）
+   - 删除无调用方的冗余方法：clearAll / resetForRetry / service.retry
+   - 删除未使用的 import（transport_protocol.dart 等）
+
+6. 设备"禁用"功能
    设备卡片可禁用某设备，禁用后不参与自动连接与发送。
    涉及 device.dart / device_dao.dart / app_db.floor.g.dart / db_service.dart /
    device_controller.dart / device_card.dart / socket_service.dart /
    storage_service.dart。
 
-5. Android 构建签名回退
+7. Android 构建签名回退
    android/app/build.gradle：存在 key.properties 且 storeFile 有效时用正式签名，
    否则自动回退 debug 签名，无签名配置也能构建 release APK。
 
-6. CI 加速（可选）
+8. CI 加速（可选）
    .github/workflows/build-android-arm64.yml：只构建 arm64 单 ABI，
    AOT 编译只跑一遍，产物更小更快。原 build-android.yml 未改动。
 
 【验证】
 lib 全部 Dart 代码已用与 CI 相同的工具链（Flutter 3.41.9 / Dart 3.11.5）
 完整执行 kernel_snapshot_program 编译，通过、无错误。
+构建标记: resend-v6（启动日志 BuildMarker 可见，用于确认运行的是新代码）
 调试/构建标记等临时代码已全部清除，与原版逐行核对。

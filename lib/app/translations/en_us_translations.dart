@@ -798,6 +798,8 @@ class EnUSTranslation extends AbstractTranslations {
         return "Resend";
       case TranslationKey.resendConfirm:
         return "Resend this file?";
+      case TranslationKey.recordInterrupted:
+        return "Transfer interrupted (app was closed)";
       case TranslationKey.sendFileFailed:
         return "Send failed";
       case TranslationKey.sendFileNoReceiver:

@@ -42,7 +42,6 @@ class SyncFileStatus extends StatelessWidget {
   });
 
   factory SyncFileStatus.fromHistory(
-    BuildContext context,
     History history,
     String selfDevId,
   ) {
@@ -51,7 +50,6 @@ class SyncFileStatus extends StatelessWidget {
     return SyncFileStatus(
       syncingFile: SyncingFile(
         totalSize: history.size,
-        context: context,
         filePath: history.content,
         fromDev: dev,
         isSender: selfDevId == history.devId,

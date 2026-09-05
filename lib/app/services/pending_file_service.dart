@@ -56,7 +56,6 @@ class PendingFileService extends GetxService {
     FileSyncHandler.sendFiles(
       devices: devices,
       files: files,
-      context: Get.context!,
     );
   }
 

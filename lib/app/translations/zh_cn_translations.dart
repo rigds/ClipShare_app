@@ -754,6 +754,8 @@ class ZhCNTranslation extends AbstractTranslations {
         return "重发";
       case TranslationKey.resendConfirm:
         return "确定要重新发送该文件吗？";
+      case TranslationKey.recordInterrupted:
+        return "传输被中断（应用已退出）";
       case TranslationKey.sendFileFailed:
         return "发送失败";
       case TranslationKey.sendFileNoReceiver:

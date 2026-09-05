@@ -330,7 +330,6 @@ class SplashController extends GetxController {
           FileSyncHandler.sendFiles(
             devices: devices,
             files: files,
-            context: Get.context!,
           );
           break;
         case MultiWindowMethod.storeWindowPos:
@@ -552,7 +551,6 @@ class SplashController extends GetxController {
             FileSyncHandler.sendFiles(
               devices: devices,
               files: files,
-              context: context,
             );
             pendingFileService.clearPendingInfo();
             Navigator.pop(context);

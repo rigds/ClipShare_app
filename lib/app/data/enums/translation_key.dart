@@ -368,6 +368,7 @@ enum TranslationKey {
   failed,
   resend,
   resendConfirm,
+  recordInterrupted,
   sendFileFailed,
   sendFileNoReceiver,
   clearFinishedRecords,

@@ -53,7 +53,6 @@ class FileSyncHandler {
   bool hasClient = false;
   File? _file;
   PendingFile pendingFile;
-  late final BuildContext context;
   late final void Function() _onDone;
   late final bool isUri;
   late final Device _device;
@@ -63,7 +62,6 @@ class FileSyncHandler {
     required this.pendingFile,
     required void Function(FileSyncHandler) onReady,
     required void Function() onDone,
-    required this.context,
     required Device device,
     bool useForward = false,
     String? targetDevId,
@@ -184,7 +182,6 @@ class FileSyncHandler {
     final fileSize = isUri ? pendingFile.size! : _file!.lengthSync();
     final record = SyncingFile(
       totalSize: fileSize,
-      context: context,
       filePath: filePath,
       fromDev: _device,
       isSender: true,
@@ -198,7 +195,6 @@ class FileSyncHandler {
       FileSyncHandler.sendFiles(
         devices: [_device],
         files: [pendingFile],
-        context: context,
       );
     });
     return record;
@@ -325,7 +321,6 @@ class FileSyncHandler {
   static void sendFiles({
     required List<Device> devices,
     required List<PendingFile> files,
-    required BuildContext context,
     int i = 0,
   }) {
     if (i >= devices.length) {
@@ -335,13 +330,11 @@ class FileSyncHandler {
     _sendDevFiles(
       device: devices[i],
       paths: files,
-      context: context,
       //发完一个设备后给下一个设备发送
       onDone: () => sendFiles(
         devices: devices,
         files: files,
         i: i + 1,
-        context: context,
       ),
     );
   }
@@ -355,7 +348,6 @@ class FileSyncHandler {
     required Device device,
     required List<PendingFile> paths,
     required void Function() onDone,
-    required BuildContext context,
     int i = 0,
   }) {
     if (i >= paths.length) {
@@ -365,14 +357,12 @@ class FileSyncHandler {
     _sendFile(
       device: device,
       pendingFile: paths[i],
-      context: context,
       //发完一个文件后给设备发送下一个文件
       onDone: () => _sendDevFiles(
         device: device,
         paths: paths,
         onDone: onDone,
         i: i + 1,
-        context: context,
       ),
     );
   }
@@ -384,7 +374,6 @@ class FileSyncHandler {
     required Device device,
     required PendingFile pendingFile,
     required void Function() onDone,
-    required BuildContext context,
   }) async {
     int totalSize;
     String fileName;
@@ -417,7 +406,6 @@ class FileSyncHandler {
       final useForward = sktService.isUseForward(device.guid);
       FileSyncHandler._private(
         pendingFile: pendingFile,
-        context: context,
         device: device,
         useForward: useForward,
         targetDevId: useForward ? device.guid : null,
@@ -442,7 +430,6 @@ class FileSyncHandler {
     required String devId,
     required int userId,
     required int fileId,
-    required BuildContext context,
     bool isForward = false,
     String? targetId,
   }) async {
@@ -476,7 +463,6 @@ class FileSyncHandler {
     final syncingFileService = Get.find<SyncingFileProgressService>();
     final syncingFile = SyncingFile(
       totalSize: size,
-      context: context,
       filePath: filePath,
       fromDev: dev,
       sink: file.openWrite(),

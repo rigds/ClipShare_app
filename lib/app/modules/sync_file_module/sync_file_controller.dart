@@ -173,7 +173,6 @@ class SyncFileController extends GetxController with GetTickerProviderStateMixin
     for (var history in files) {
       historyList.add(
         SyncFileStatus.fromHistory(
-          Get.context!,
           history,
           appConfig.device.guid,
         ),
