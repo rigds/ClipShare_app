@@ -368,17 +368,6 @@ class HomePage extends GetView<HomeController> {
           controller.showingHistorySearch.value = false;
         }
       },
-      onClose: () {
-        if (filterController.textController.text.isNotEmpty || filterController.content.value.isNotEmpty) {
-          // 先清空搜索词并恢复默认列表
-          filterController.textController.clear();
-          filterController.content.value = "";
-          filterController.onSearchBtnClicked();
-        } else {
-          filterController.focusNode.unfocus();
-          controller.showingHistorySearch.value = false;
-        }
-      },
     );
   }
 
@@ -397,12 +386,10 @@ class HomePage extends GetView<HomeController> {
 class _HistorySearchAppBar extends StatefulWidget {
   final HistoryFilterController controller;
   final VoidCallback onFocusLost;
-  final VoidCallback? onClose;
 
   const _HistorySearchAppBar({
     required this.controller,
     required this.onFocusLost,
-    this.onClose,
   });
 
   @override
@@ -443,7 +430,6 @@ class _HistorySearchAppBarState extends State<_HistorySearchAppBar> {
     return HistoryFilterSearchRow(
       controller: widget.controller,
       showFillColor: false,
-      onClose: widget.onClose,
     );
   }
 }

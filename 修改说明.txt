@@ -113,3 +113,13 @@ WebDAV 自动建目录、签名回退）全部保留，不受影响。
           translation_key.dart / zh_cn_translations.dart / en_us_translations.dart
           （新增 pressAgainToExit 文案"再按一次退出应用"/"Press back again to exit"）。
 验证：四文件 dart analyze 无 error/warning，仅存 3 条与本次无关的既有 info。
+
+
+【2026-09-06】调整：移除移动端搜索栏"×"关闭按钮
+说明：上一轮(09-05)为移动端搜索栏新增的"×"关闭按钮，与本轮新增的
+      "返回手势退出搜索"功能重复，按要求彻底删除其全部代码：
+      history_filter.dart 的 onClose 字段/构造参数/按钮 UI 块，
+      home_page.dart 的 onClose 回调/_HistorySearchAppBar 相关字段与传参。
+      退出搜索统一使用返回手势（清词->回默认列表->收起搜索栏）。
+      "有搜索词时滑动不折叠"(onFocusLost)修复保留不变。
+涉及文件：history_filter.dart、home_page.dart

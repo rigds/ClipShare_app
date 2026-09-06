@@ -165,14 +165,10 @@ class HistoryFilterSearchRow extends StatelessWidget {
   final HistoryFilterController controller;
   final bool showFillColor;
 
-  /// 移动端搜索栏的关闭按钮回调；为 null 时不显示关闭按钮（桌面端常驻搜索行）
-  final VoidCallback? onClose;
-
   const HistoryFilterSearchRow({
     super.key,
     required this.controller,
     required this.showFillColor,
-    this.onClose,
   });
 
   @override
@@ -220,18 +216,6 @@ class HistoryFilterSearchRow extends StatelessWidget {
               ),
             ),
           ),
-          if (onClose != null)
-            Container(
-              margin: const EdgeInsets.only(left: 5, right: 5),
-              child: IconButton(
-                onPressed: onClose,
-                tooltip: TranslationKey.close.tr,
-                icon: const Icon(
-                  Icons.close_rounded,
-                  size: 22,
-                ),
-              ),
-            ),
           Container(
             margin: const EdgeInsets.only(left: 5, right: 5),
             child: IconButton(
