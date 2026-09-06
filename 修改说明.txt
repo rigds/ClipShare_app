@@ -82,26 +82,17 @@ WebDAV 自动建目录、签名回退）全部保留，不受影响。
 - 涉及文件：config_key.dart、config_service.dart、operation_record_dao.dart、history_controller.dart、device_page.dart、translation_key.dart、zh_cn_translations.dart、en_us_translations.dart
 - 配置为 key-value 存储，无需数据库版本升级，旧数据无损兼容。
 
-========================================
-【2026-09-05 v3 修复】中转模式文件重发失败
-========================================
-问题：走 WebDAV/OSS/S3 中转发送的文件，失败后点"重发"没反应，
-      日志报 "device not use storage."，进度页记录消失。
-原因：重发回调统一走 socket 直连通道（sendFiles），未区分该记录
-      当时是走中转还是直连；对仅中转可达的设备，直连被拒且静默失败。
+
+【2026-09-05】新增：历史记录移动端搜索栏滑动消失修复
+问题：手机上输入关键字点搜索后，只要滑动列表，顶部搜索栏就退回默认标题栏，
+      但过滤条件其实还生效（列表仍是搜索结果），造成"界面变了、搜索还在"的割裂。
+根因：搜索框 onTapOutside 在触摸列表滑动时触发 unfocus -> onFocusLost 无条件
+      折叠搜索栏（showingHistorySearch=false），而搜索关键字 content 并未清除。
 修复：
-  1. file_sync_handler.dart 新增 retryRelayFile()：
-     - 目标设备当前已局域网直连 → 自动改走 socket 直发（更快，避免向公网绕路）
-     - 否则 → 重新走存储中转上传 + WS 通知对方拉取（与原发送路径一致）
-  2. storage_service.dart 中转发送记录的重发回调改为调用 retryRelayFile。
-  3. syncing_file_progress_service.dart 恢复记录的重发按上下文分流：
-     直连上下文走 sendFiles，中转上下文走 retryRelayFile。
-  4. 重发前校验：本地文件已被删除 → 生成"选择的文件路径不存在!"失败记录，
-     不再静默消失。（对方未连接的提示：直连重发沿用 5 秒检测自动标记
-     "对方未连接（空发送）"；中转重发不要求对方在线，对方上线后自动拉取。）
-  5. 新增构建标记日志：[BuildMarker] records-resend-v4（上一版 zip 说明里
-     提到 v3 标记但代码缺失，本版已真正加入，日志可见即为本版代码）。
-涉及文件（3 个）：
-  lib/app/handlers/sync/file_sync_handler.dart
-  lib/app/services/transport/storage_service.dart
-  lib/app/services/syncing_file_progress_service.dart
+  1. onFocusLost 改为"仅当无搜索词时才折叠"：有词时只收起键盘、搜索栏保持显示，
+     与列表过滤状态一致；滑动不再退回默认界面。
+  2. 移动端搜索栏新增"×"关闭按钮：有词时点一下清空搜索并恢复默认列表，
+     已空时再点退出搜索模式（符合 Android 搜索框习惯）。桌面端常驻搜索行不受影响。
+涉及文件：home_page.dart（_buildHistorySearchAppBar / _HistorySearchAppBar）、
+          history_filter.dart（HistoryFilterSearchRow 新增可选 onClose 参数与关闭按钮）。
+验证：两文件 dart analyze 无 error/warning，仅存 5 条与本次无关的既有 info。

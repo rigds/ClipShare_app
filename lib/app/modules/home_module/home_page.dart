@@ -337,7 +337,22 @@ class HomePage extends GetView<HomeController> {
     return _HistorySearchAppBar(
       controller: filterController,
       onFocusLost: () {
-        controller.showingHistorySearch.value = false;
+        // 有搜索词时保持搜索栏（仅收起键盘），避免滑动列表触发失焦导致
+        // 搜索栏退回默认标题栏、但过滤条件仍然生效的不一致状态
+        if (filterController.content.value.isEmpty && filterController.textController.text.isEmpty) {
+          controller.showingHistorySearch.value = false;
+        }
+      },
+      onClose: () {
+        if (filterController.textController.text.isNotEmpty || filterController.content.value.isNotEmpty) {
+          // 先清空搜索词并恢复默认列表
+          filterController.textController.clear();
+          filterController.content.value = "";
+          filterController.onSearchBtnClicked();
+        } else {
+          filterController.focusNode.unfocus();
+          controller.showingHistorySearch.value = false;
+        }
       },
     );
   }
@@ -357,10 +372,12 @@ class HomePage extends GetView<HomeController> {
 class _HistorySearchAppBar extends StatefulWidget {
   final HistoryFilterController controller;
   final VoidCallback onFocusLost;
+  final VoidCallback? onClose;
 
   const _HistorySearchAppBar({
     required this.controller,
     required this.onFocusLost,
+    this.onClose,
   });
 
   @override
@@ -401,6 +418,7 @@ class _HistorySearchAppBarState extends State<_HistorySearchAppBar> {
     return HistoryFilterSearchRow(
       controller: widget.controller,
       showFillColor: false,
+      onClose: widget.onClose,
     );
   }
 }
