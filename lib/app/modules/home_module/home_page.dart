@@ -35,6 +35,9 @@ import '../sync_file_module/sync_file_page.dart';
  * GetX Template Generator - fb.com/htngu.99
  * */
 
+/// 记录上一次返回键/返回手势的时间，用于"二次返回退出应用"判断
+DateTime? _lastBackAt;
+
 class HomePage extends GetView<HomeController> {
   final appConfig = Get.find<ConfigService>();
   final sktService = Get.find<SocketService>();
@@ -59,8 +62,30 @@ class HomePage extends GetView<HomeController> {
           controller.notifyMultiSelectionPopScopeDisable();
           return;
         }
+        // 历史页搜索模式：返回手势先退出搜索、清空关键词并返回默认界面
+        if (controller.isHistoryPage && controller.showingHistorySearch.value) {
+          final filterController = Get.find<HistoryController>().filterController;
+          if (filterController.textController.text.isNotEmpty ||
+              filterController.content.value.isNotEmpty) {
+            filterController.textController.clear();
+            filterController.content.value = "";
+            filterController.onSearchBtnClicked();
+          }
+          filterController.focusNode.unfocus();
+          controller.showingHistorySearch.value = false;
+          return;
+        }
         if (Platform.isAndroid && !controller.showPendingItemsDetail.value) {
-          androidChannelService.moveToBg();
+          // 全局二次返回退出应用：2 秒内第二次返回手势真正退出，否则提示
+          final now = DateTime.now();
+          final last = _lastBackAt;
+          if (last != null && now.difference(last) <= const Duration(seconds: 2)) {
+            _lastBackAt = null;
+            SystemNavigator.pop();
+          } else {
+            _lastBackAt = now;
+            Global.toast(TranslationKey.pressAgainToExit.tr);
+          }
         }
       },
       child: CustomKeyboardListener(

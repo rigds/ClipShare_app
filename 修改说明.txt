@@ -96,3 +96,20 @@ WebDAV 自动建目录、签名回退）全部保留，不受影响。
 涉及文件：home_page.dart（_buildHistorySearchAppBar / _HistorySearchAppBar）、
           history_filter.dart（HistoryFilterSearchRow 新增可选 onClose 参数与关闭按钮）。
 验证：两文件 dart analyze 无 error/warning，仅存 5 条与本次无关的既有 info。
+
+
+【2026-09-06】新增：历史记录页返回手势修复 + 全局二次返回退出应用
+问题1：在历史记录页搜索后，从屏幕边缘右滑（返回手势）会直接切走整个页面，
+      而不是先退出搜索回到默认界面，与 Android 返回键习惯不符。
+问题2：应用在任何页面按返回/返回手势都会立即 moveToBg 退到后台，
+      没有"再按一次退出"的确认，容易误触。
+修复：
+  1. 历史记录页处于搜索模式时，返回手势优先：清空搜索关键词、恢复默认列表、
+     收起搜索栏并退出搜索模式；仅当不在搜索模式时才继续走原有返回逻辑。
+  2. 全局返回改为"二次返回退出"：首次返回提示"再按一次退出应用"，
+     2 秒内再次返回才真正退出（SystemNavigator.pop）。多选模式、
+     搜索模式等仍优先处理各自的返回，不占用这一次。
+涉及文件：home_page.dart（PopScope.onPopInvoked 逻辑）、
+          translation_key.dart / zh_cn_translations.dart / en_us_translations.dart
+          （新增 pressAgainToExit 文案"再按一次退出应用"/"Press back again to exit"）。
+验证：四文件 dart analyze 无 error/warning，仅存 3 条与本次无关的既有 info。

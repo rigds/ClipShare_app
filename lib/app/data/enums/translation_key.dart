@@ -539,6 +539,7 @@ enum TranslationKey {
   showMainWindow,
   exitApp,
   exitAppViaHotKey,
+  pressAgainToExit,
   clearHotKeyConfirm,
   pleaseEnterHotKey,
   userApp,
