@@ -123,3 +123,17 @@ WebDAV 自动建目录、签名回退）全部保留，不受影响。
       退出搜索统一使用返回手势（清词->回默认列表->收起搜索栏）。
       "有搜索词时滑动不折叠"(onFocusLost)修复保留不变。
 涉及文件：history_filter.dart、home_page.dart
+
+【2026-09-06】优化：发送文件-在线设备选择区自适应屏幕
+问题：手机端发送文件面板中，在线设备区高度写死 155px，设备较多时
+      显示不全，必须滑动才能选择到全部设备（平板/桌面走另一布局不受影响）。
+修复：
+  1. OnlineDevices 新增 adaptiveHeight 模式：高度随设备数量自适应，
+     设备少时完全展开（无需滚动），设备多时最多占屏幕高度 45%，超出滚动。
+  2. drag_and_send_file_page.dart 手机端布局由固定 SizedBox(height:155)
+     改为 ConstrainedBox(maxHeight: 屏高*0.45) + 自适应列表。
+  3. 无在线设备时显示紧凑空状态提示（图标缩小到 40px），不再撑高区域。
+桌面端(280px 侧栏)与 Windows 发送窗口(横向列表)行为完全不变。
+涉及文件：online_devices.dart、drag_and_send_file_page.dart
+验证：dart analyze 无新增 error/warning（仅 1 条原文件既有的 get 包
+      unused_import 警告，已对照原始文件确认非本次引入）。

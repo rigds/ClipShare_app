@@ -62,7 +62,12 @@ class _DragAndSendFilePageState extends State<DragAndSendFilePage> {
           child: SafeArea(
             child: Column(
               children: [
-                SizedBox(height: 155, child: Obx(() => buildOnlineDevices())),
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.45,
+                  ),
+                  child: Obx(() => buildOnlineDevices(adaptiveHeight: true)),
+                ),
                 Expanded(child: Obx(() => buildPendingItems())),
               ],
             ),
@@ -83,13 +88,14 @@ class _DragAndSendFilePageState extends State<DragAndSendFilePage> {
     );
   }
 
-  Widget buildOnlineDevices() {
+  Widget buildOnlineDevices({bool adaptiveHeight = false}) {
     final onlineList = devController.onlineAndPairedList;
     if (onlineList.length == 1) {
       pendingFileService.pendingDevs.add(onlineList[0]);
     }
     return OnlineDevices(
       direction: Axis.vertical,
+      adaptiveHeight: adaptiveHeight,
       onlineList: onlineList,
       selectedList: pendingFileService.pendingDevs.toList(),
       onTap: (dev) {
