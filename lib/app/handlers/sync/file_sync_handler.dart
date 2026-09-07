@@ -290,13 +290,13 @@ class FileSyncHandler {
     });
   }
 
-  /// 桌面端按配置在接收完成后发送通知，点击后直接打开接收的文件。
+  /// 桌面端/安卓端按配置在接收完成后发送通知；桌面端点击通知直接打开文件，安卓端点击打开应用。
   static Future<void> _notifyReceivedFileIfNeeded({
     required ConfigService appConfig,
     required File file,
     required int fileId,
   }) async {
-    if (!PlatformExt.isDesktop || !appConfig.notifyOnReceivedFile) {
+    if (!(PlatformExt.isDesktop || Platform.isAndroid) || !appConfig.notifyOnReceivedFile) {
       return;
     }
     await NotifyUtil.notify(
