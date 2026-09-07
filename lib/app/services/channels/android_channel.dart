@@ -159,13 +159,14 @@ class AndroidChannelService extends GetxService {
   }
 
   /// 发送通知
-  Future<int?> sendNotify(String title, String content) {
+  Future<int?> sendNotify(String title, String content, {String? openPage}) {
     if (!Platform.isAndroid) return Future.value(null);
     return androidChannel.invokeMethod<int?>(
       AndroidChannelMethod.sendNotify.name,
       {
         "title": title,
         "content": content,
+        if (openPage != null) "openPage": openPage,
       },
     );
   }

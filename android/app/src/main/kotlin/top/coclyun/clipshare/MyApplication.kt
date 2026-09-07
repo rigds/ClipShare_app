@@ -92,12 +92,15 @@ class MyApplication : Application() {
         /**
          * 发送通知
          */
-        fun commonNotify(title:String?, content: String): Int {
+        fun commonNotify(title:String?, content: String, openPage: String? = null): Int {
+            // 携带页面跳转指令时使用独立 PendingIntent（独立 requestCode，避免覆盖默认通知点击目标）
+            val clickIntent = if (openPage.isNullOrEmpty()) pendingIntent
+            else createPagePendingIntent(openPage)
             // 构建通知
             val builder = NotificationCompat.Builder(applicationContext, commonNotifyChannelId)
                 .setSmallIcon(R.drawable.launcher_icon).setContentTitle( title ?: "ClipShare")
                 .setContentText(content).setPriority(NotificationCompat.PRIORITY_HIGH)
-                .setContentIntent(pendingIntent).setFullScreenIntent(pendingIntent, true)
+                .setContentIntent(clickIntent).setFullScreenIntent(clickIntent, true)
                 // 点击通知后自动关闭
                 .setAutoCancel(true)
                 // 设置为公开可见通知
@@ -111,6 +114,19 @@ class MyApplication : Application() {
             // 发送通知
             notificationManager.notify(id, builder.build())
             return id
+        }
+
+        /**
+         * 创建携带页面跳转指令的通知 PendingIntent。
+         * 经由 ProxyActivity 透传 extras 到 MainActivity，再由 Dart 侧统一处理。
+         * requestCode 固定独立值，避免与默认通知点击的 requestCode 0 相互覆盖。
+         */
+        private fun createPagePendingIntent(page: String): PendingIntent {
+            val intent = Intent(applicationContext, ProxyActivity::class.java)
+            intent.putExtra("openPage", page)
+            return PendingIntent.getActivity(
+                applicationContext, 100, intent, PendingIntent.FLAG_IMMUTABLE
+            )
         }
     }
 
@@ -372,7 +388,8 @@ class MyApplication : Application() {
                 "sendNotify" -> {
                     val title = args["title"].toString();
                     val content = args["content"].toString();
-                    result.success(commonNotify(title, content));
+                    val openPage = args["openPage"] as? String;
+                    result.success(commonNotify(title, content, openPage));
                 }
                 //发送通知
                 "cancelNotify" -> {

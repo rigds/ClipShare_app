@@ -135,3 +135,24 @@ WebDAV 自动建目录、签名回退）全部保留，不受影响。
           桌面端点击通知直接打开文件的原有行为不变。
 验证：两文件 dart analyze 无任何问题。
 涉及文件：file_sync_handler.dart、settings_notification_page.dart
+
+【2026-09-07】增强：安卓接收文件通知点击直达"文件传输"页；设置页去掉描述文案
+说明：1. 安卓点击"接收文件"通知不再只打开 App 默认页（历史记录），
+         现直接跳转到文件传输页（大屏切 tab，小屏推 SYNC_FILE 路由）。
+      2. 设置-通知中"接收文件后发起通知"不再显示"点击通知后自动打开文件"描述。
+      3. 安卓通知正文改为显示文件保存路径（原文案"点击通知后自动打开文件"已不符）。
+      桌面端(Win等)行为不变：点击通知仍直接打开文件。
+实现链路：Kotlin commonNotify 增加 openPage 参数→独立 requestCode(100) PendingIntent
+  携带 extra "openPage"→ProxyActivity 透传→MainActivity dispatchOpenPageIntent→
+  MethodChannel "onOpenPage"→splash_controller 调 HomeController.gotoFileSyncPage()。
+涉及文件（8个）：
+  android/app/src/main/kotlin/top/coclyun/clipshare/MyApplication.kt
+  android/app/src/main/kotlin/top/coclyun/clipshare/MainActivity.kt
+  lib/app/data/enums/channelMethods/android_channel_method.dart
+  lib/app/modules/splash_module/splash_controller.dart
+  lib/app/services/channels/android_channel.dart
+  lib/app/utils/notify_util.dart
+  lib/app/handlers/sync/file_sync_handler.dart
+  lib/app/modules/settings_module/pages/settings_notification_page.dart
+验证：6 个 Dart 文件 dart analyze 无新增问题（splash_controller 仅存 6 条原版既有
+warning/info，含 433 行 dead_code，与原版一致）。Kotlin 未在本环境编译，随 CI 构建验证。

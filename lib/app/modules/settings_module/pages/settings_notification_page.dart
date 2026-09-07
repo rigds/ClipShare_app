@@ -116,7 +116,6 @@ class SettingsNotificationPage extends SettingsSectionView {
           TranslationKey.preferenceSettingsNotifyOnReceivedFileDesc,
         ],
         title: Text(TranslationKey.preferenceSettingsNotifyOnReceivedFile.tr),
-        description: Text(TranslationKey.preferenceSettingsNotifyOnReceivedFileDesc.tr),
         value: appConfig.notifyOnReceivedFile,
         action: (v) => Switch(
           value: v,
