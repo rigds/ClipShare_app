@@ -149,3 +149,11 @@ WebDAV 自动建目录、签名回退）全部保留，不受影响。
       3. 保留此前两个小改动：设置页无描述行；安卓通知正文"点击查看"（点击即打开文件，文案准确）。
       4. 上一条目中"Kotlin 已完全回退为原版"的描述已被本条取代，以本条为准。
 验证：dart analyze 无新增问题；上游文件与 cs_user 基线差异仅为通知机制本身。
+
+【2026-09-07 CI发布改造】build-all.yml 增加 GitHub Packages 推送与版本存档（仅改 release job，构建部分未动）：
+      1. 每次发布自动把全部产物推送到 Packages 的 generic 包 "clipshare"，版本号=tag。
+      2. 每个版本附带源码包 ClipShare-src-<tag>.zip（回退时直接解压即用；git tag 本身也可恢复代码）。
+      3. 每个版本自动生成 CHANGELOG-<tag>.md（相对上一 tag 的提交记录 + 本修改说明全文）。
+      4. release job 新增 permissions: packages: write；checkout 增加 fetch-depth: 0。
+      5. 用法：打 tag 推送（v开头）或 Actions 手动运行填 tag；建议 tag 唯一（如 v1.5.4-0907），
+         同 tag 重复发布 Packages 会因版本已存在而报错，需先在 Packages 页面删除旧版本。
