@@ -29,7 +29,6 @@ class MainActivity : FlutterFragmentActivity() {
         super.onCreate(savedInstanceState)
         MyApplication.mainActivity = this
         dispatchFileOpenIntent(intent)
-        dispatchOpenPageIntent(intent)
     }
 
     /**
@@ -40,21 +39,6 @@ class MainActivity : FlutterFragmentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         dispatchFileOpenIntent(intent)
-        dispatchOpenPageIntent(intent)
-    }
-
-    /**
-     * 通知栏点击携带的页面跳转指令（如文件传输页），转发给 Flutter 侧统一处理。
-     */
-    private fun dispatchOpenPageIntent(intent: Intent?) {
-        val page = intent?.getStringExtra("openPage")
-        if (page.isNullOrEmpty()) {
-            return
-        }
-        MyApplication.androidChannel.invokeMethod(
-            "onOpenPage",
-            mapOf("page" to page)
-        )
     }
 
     /**

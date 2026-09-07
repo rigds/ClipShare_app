@@ -1121,6 +1121,8 @@ class ZhCNTranslation extends AbstractTranslations {
         return "接收文件后发起通知";
       case TranslationKey.preferenceSettingsNotifyOnReceivedFileDesc:
         return "点击通知后自动打开文件";
+      case TranslationKey.receivedFileNotifyTapToView:
+        return "点击查看";
       case TranslationKey.notification:
         return "通知";
       case TranslationKey.aboutPageDatabaseVersionItemName:

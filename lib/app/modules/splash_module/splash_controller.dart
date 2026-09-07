@@ -8,7 +8,6 @@ import 'package:clipshare/app/data/enums/op_method.dart';
 import 'package:clipshare/app/data/enums/window_type.dart';
 import 'package:clipshare/app/data/models/my_drop_item.dart';
 import 'package:clipshare/app/data/repository/entity/tables/operation_record.dart';
-import 'package:clipshare/app/modules/home_module/home_controller.dart';
 import 'package:clipshare/app/services/channels/multi_window_channel.dart';
 import 'package:clipshare/app/services/tray_service.dart';
 import 'package:clipshare/app/utils/extensions/number_extension.dart';
@@ -472,12 +471,6 @@ class SplashController extends GetxController {
               break;
             }
             await _handleIncomingUri(uri!);
-            break;
-          case AndroidChannelMethod.onOpenPage:
-            final page = call.arguments["page"]?.toString();
-            if (page == "fileTransfer" && Get.isRegistered<HomeController>()) {
-              Get.find<HomeController>().gotoFileSyncPage();
-            }
             break;
           case AndroidChannelMethod.onSmsChanged:
             final content = call.arguments["content"]!;

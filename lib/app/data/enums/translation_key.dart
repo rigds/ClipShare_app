@@ -534,6 +534,7 @@ enum TranslationKey {
   preferenceSettingsDevConnNotification,
   preferenceSettingsNotifyOnReceivedFile,
   preferenceSettingsNotifyOnReceivedFileDesc,
+  receivedFileNotifyTapToView,
   aboutPageDatabaseVersionItemName,
   newVersionAvailable,
   showMainWindow,

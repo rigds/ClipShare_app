@@ -290,7 +290,7 @@ class FileSyncHandler {
     });
   }
 
-  /// 桌面端/安卓端按配置在接收完成后发送通知；桌面端点击通知直接打开文件，安卓端点击打开文件传输页。
+  /// 桌面端/安卓端按配置在接收完成后发送通知；桌面端点击通知直接打开文件，安卓端点击打开应用（正文提示"点击查看"）。
   static Future<void> _notifyReceivedFileIfNeeded({
     required ConfigService appConfig,
     required File file,
@@ -302,10 +302,9 @@ class FileSyncHandler {
     await NotifyUtil.notify(
       title: file.fileName,
       content: Platform.isAndroid
-          ? file.normalizePath
+          ? TranslationKey.receivedFileNotifyTapToView.tr
           : TranslationKey.preferenceSettingsNotifyOnReceivedFileDesc.tr,
       key: '$_receivedFileNotifyKeyPrefix-$fileId',
-      androidOpenPage: Platform.isAndroid ? "fileTransfer" : null,
       payload: NotificationPayload(
         type: NotificationPayloadType.openFile,
         data: {

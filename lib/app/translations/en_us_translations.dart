@@ -1113,6 +1113,8 @@ class EnUSTranslation extends AbstractTranslations {
         return "Notify after receiving files";
       case TranslationKey.preferenceSettingsNotifyOnReceivedFileDesc:
         return "Click notification to open file";
+      case TranslationKey.receivedFileNotifyTapToView:
+        return "Tap to view";
       case TranslationKey.notification:
         return "Notification";
       case TranslationKey.aboutPageDatabaseVersionItemName:

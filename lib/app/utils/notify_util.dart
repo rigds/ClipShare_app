@@ -124,7 +124,6 @@ class NotifyUtil {
     required String key,
     Uri? notificationLogoUri,
     NotificationPayload? payload,
-    String? androidOpenPage,
   }) async {
     int? notifyId;
     if(title.isEmpty){
@@ -132,7 +131,7 @@ class NotifyUtil {
     }
     if (Platform.isAndroid) {
       final androidChannelService = Get.find<AndroidChannelService>();
-      notifyId = await androidChannelService.sendNotify(title, content, openPage: androidOpenPage);
+      notifyId = await androidChannelService.sendNotify(title, content);
     } else {
       if (!_notificationReady) {
         await _initNotifications();
