@@ -457,6 +457,26 @@ class _HistoryWindowState extends State<HistoryWindow> with WindowListener, Wind
             child: const Icon(MdiIcons.cancel),
           ),
           ClipMultiSelectionFabAction(
+            onPressed: _list.isEmpty
+                ? null
+                : () {
+                    final items =
+                        _list.map((entry) => entry.data).toList(growable: false);
+                    _selectionController.toggleSelectAll(items);
+                    _refreshState();
+                  },
+            tooltip: _selectionController
+                    .allSelected(_list.map((entry) => entry.data))
+                ? TranslationKey.cancelSelectAll.tr
+                : TranslationKey.selectAll.tr,
+            child: Icon(
+              _selectionController
+                      .allSelected(_list.map((entry) => entry.data))
+                  ? Icons.deselect
+                  : Icons.select_all,
+            ),
+          ),
+          ClipMultiSelectionFabAction(
             onPressed: canMergeCopy ? () async {
               await multiWindowService.copyContent(0, _selectionController.mergedContent);
               if (!mounted) {

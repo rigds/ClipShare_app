@@ -92,9 +92,6 @@ jobs:
         )
       }}
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      packages: write
     outputs:
       tag_name: ${{ steps.tag.outputs.tag_name }}
       tag_name_clean: ${{ steps.tag.outputs.tag_name_clean }}
@@ -104,7 +101,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
-          fetch-depth: 0
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
@@ -127,76 +123,9 @@ jobs:
           fi
           # 去掉前缀 v
           TAG_NAME_CLEAN="${TAG_NAME#v}"
-          # Packages 版本号不允许 + 号
-          PKG_VERSION="${TAG_NAME_CLEAN//+/-}"
 
           echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
           echo "tag_name_clean=$TAG_NAME_CLEAN" >> $GITHUB_OUTPUT
-          echo "pkg_version=$PKG_VERSION" >> $GITHUB_OUTPUT
-
-      # 每个版本的完整源码打包，用于日后回退恢复
-      - name: Build source archive
-        run: |
-          TAG="${{ steps.tag.outputs.tag_name }}"
-          zip -rq "artifacts/ClipShare-src-${TAG}.zip" . \
-            -x "./.git/*" "./build/*" "./artifacts/*" \
-               "./.dart_tool/*" "./android/.gradle/*" "./android/app/build/*" \
-               "*/build/*"
-          ls -la artifacts/ | grep src
-
-      # 自动生成本版本更新清单（相对上一个 tag 的提交 + 仓库内修改说明）
-      - name: Generate changelog
-        run: |
-          TAG="${{ steps.tag.outputs.tag_name }}"
-          {
-            echo "# ${TAG} ($(date -u '+%Y-%m-%d %H:%M') UTC)"
-            echo
-            echo "## 提交记录"
-            PREV=$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || echo "")
-            if [ -n "$PREV" ]; then
-              echo "自 ${PREV} 以来："
-              git log --no-merges --pretty=format:'- %s (%h)' "${PREV}..${TAG}"
-            else
-              echo "首个标记版本，列出最近 30 条提交："
-              git log --no-merges -n 30 --pretty=format:'- %s (%h)' "${TAG}"
-            fi
-            echo
-            echo
-            if [ -f "修改说明.txt" ]; then
-              echo "## 本地修改记录（修改说明.txt）"
-              echo
-              echo '```'
-              cat 修改说明.txt
-              echo '```'
-            fi
-          } > "artifacts/CHANGELOG-${TAG}.md"
-          cat "artifacts/CHANGELOG-${TAG}.md"
-
-      # 推送到 GitHub Packages（generic 包 clipshare，每版本一个版本号，长期保留可下载回退）
-      - name: Upload to GitHub Packages (generic)
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PKG_VERSION: ${{ steps.tag.outputs.pkg_version }}
-        run: |
-          BASE="https://maven.pkg.github.com/${GITHUB_REPOSITORY}/packages/clipshare/${PKG_VERSION}"
-          shopt -s nullglob
-          files=(artifacts/*)
-          if [ ${#files[@]} -eq 0 ]; then
-            echo "no artifacts to upload"
-            exit 1
-          fi
-          for f in "${files[@]}"; do
-            name="$(basename "$f")"
-            enc="$(python3 -c "import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1]))" "$name")"
-            echo "PUT -> ${BASE}/${enc}"
-            curl --fail --silent --show-error --retry 3 \
-              -X PUT \
-              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-              -H "Content-Type: application/octet-stream" \
-              --data-binary "@${f}" \
-              "${BASE}/${enc}"
-          done
-          echo "All artifacts pushed to package 'clipshare' version '${PKG_VERSION}'."
 
       # 创建 Release
       - name: Create Release

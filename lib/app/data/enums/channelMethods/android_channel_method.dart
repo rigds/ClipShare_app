@@ -3,7 +3,6 @@ enum AndroidChannelMethod {
   onScreenUnlocked,
   onScreenClosed,
   onFileOpened,
-  onNotifyClick,
   notifyMediaScan,
   showHistoryFloatWindow,
   closeHistoryFloatWindow,

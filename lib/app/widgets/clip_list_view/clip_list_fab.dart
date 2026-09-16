@@ -25,6 +25,22 @@ extension _ClipListFab on ClipListViewState {
           child: const Icon(MdiIcons.cancel),
         ),
         ClipMultiSelectionFabAction(
+          onPressed: widget.list.isEmpty
+              ? null
+              : () {
+                  _selectionController.toggleSelectAll(widget.list);
+                  _refreshState();
+                },
+          tooltip: _selectionController.allSelected(widget.list)
+              ? TranslationKey.cancelSelectAll.tr
+              : TranslationKey.selectAll.tr,
+          child: Icon(
+            _selectionController.allSelected(widget.list)
+                ? Icons.deselect
+                : Icons.select_all,
+          ),
+        ),
+        ClipMultiSelectionFabAction(
           onPressed: _showSelectedDeleteDialog,
           tooltip:
               "${TranslationKey.delete.tr} (${Constants.selectionDeleteShortcutLabel})",

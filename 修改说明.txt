@@ -136,24 +136,17 @@ WebDAV 自动建目录、签名回退）全部保留，不受影响。
 验证：两文件 dart analyze 无任何问题。
 涉及文件：file_sync_handler.dart、settings_notification_page.dart
 
-【2026-09-07 最终版】采用上游 v1.5.4 通知点击机制（替代此前"Kotlin 回退原版"方案）：
-      1. 安卓每条接收文件通知携带独立 notifyId，点击通知 → 原生回传 onNotifyClick
-         → Dart 按 id 查找 payload → 直接打开对应文件（与 Windows 桌面端行为一致）。
-      2. 涉及文件（直接采用上游版本）：
-         android/.../MyApplication.kt（每条通知独立 PendingIntent + notifyClickToDart）
-         android/.../ProxyActivity.kt（透传 notifyId）
-         lib/app/utils/notify_util.dart（_payloadById 映射 + handleNotifyClick 统一分发）
-         lib/app/data/enums/channelMethods/android_channel_method.dart（新增 onNotifyClick）
-         lib/app/modules/splash_module/splash_controller.dart（新增 onNotifyClick 分支，
-           在本地版本上追加，保留此前 sendFiles 去 context 改动）
-      3. 保留此前两个小改动：设置页无描述行；安卓通知正文"点击查看"（点击即打开文件，文案准确）。
-      4. 上一条目中"Kotlin 已完全回退为原版"的描述已被本条取代，以本条为准。
-验证：dart analyze 无新增问题；上游文件与 cs_user 基线差异仅为通知机制本身。
-
-【2026-09-07 CI发布改造】build-all.yml 增加 GitHub Packages 推送与版本存档（仅改 release job，构建部分未动）：
-      1. 每次发布自动把全部产物推送到 Packages 的 generic 包 "clipshare"，版本号=tag。
-      2. 每个版本附带源码包 ClipShare-src-<tag>.zip（回退时直接解压即用；git tag 本身也可恢复代码）。
-      3. 每个版本自动生成 CHANGELOG-<tag>.md（相对上一 tag 的提交记录 + 本修改说明全文）。
-      4. release job 新增 permissions: packages: write；checkout 增加 fetch-depth: 0。
-      5. 用法：打 tag 推送（v开头）或 Actions 手动运行填 tag；建议 tag 唯一（如 v1.5.4-0907），
-         同 tag 重复发布 Packages 会因版本已存在而报错，需先在 Packages 页面删除旧版本。
+【2026-09-07 最终版】回退"通知点击直达文件传输页"方案，改为：
+      1. 安卓接收文件通知正文显示"点击查看"（新增翻译键 receivedFileNotifyTapToView，
+         中文"点击查看" / 英文"Tap to view"）。点击通知行为回退为原版：仅打开应用。
+      2. 设置-通知"接收文件后发起通知"不再显示"点击通知后自动打开文件"描述行。
+      3. 安卓端接收文件通知开关生效（isDesktop || isAndroid），桌面端行为不变。
+      4. Kotlin 原生代码（MyApplication.kt / MainActivity.kt）已完全回退为原版，
+         上一轮交付包中含 openPage 改动的 Kotlin 文件请用本包覆盖，勿再使用。
+涉及文件（本条相关）：
+  lib/app/data/enums/translation_key.dart
+  lib/app/translations/zh_cn_translations.dart
+  lib/app/translations/en_us_translations.dart
+  lib/app/handlers/sync/file_sync_handler.dart
+  lib/app/modules/settings_module/pages/settings_notification_page.dart
+验证：dart analyze 无新增问题；Kotlin 与 cs_user 原版逐字节一致。

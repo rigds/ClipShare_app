@@ -29,6 +29,39 @@ class ClipMultiSelectionController {
     return _selectedItems.contains(item);
   }
 
+  /// 当前列表中的可见项是否已全部被选中；空列表视为未全选，避免按钮语义歧义。
+  bool allSelected(Iterable<ClipData> items) {
+    if (!_enabled) {
+      return false;
+    }
+    final list = items.toList(growable: false);
+    if (list.isEmpty) {
+      return false;
+    }
+    return list.every(_selectedItems.contains);
+  }
+
+  /// 全选当前列表：清空已有选择后按传入顺序加入，保证合并复制顺序与列表一致。
+  void selectAll(Iterable<ClipData> items) {
+    if (!_enabled) {
+      return;
+    }
+    _selectedItems.clear();
+    _selectedItems.addAll(items);
+  }
+
+  /// 全选/取消全选切换：已全选则清空，否则全选，供 FAB 按钮复用。
+  void toggleSelectAll(Iterable<ClipData> items) {
+    if (!_enabled) {
+      return;
+    }
+    if (allSelected(items)) {
+      _selectedItems.clear();
+    } else {
+      selectAll(items);
+    }
+  }
+
   /// 开启多选模式；若已经开启则保持现状，避免重复重置用户选择。
   void enable() {
     _enabled = true;
