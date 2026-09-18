@@ -204,53 +204,61 @@ class Global {
                 ],
               ),
             ),
+            // 底部按钮区：不要再用单行 Row 包裹全部按钮。
+            // AlertDialog 会把 actions 放进 OverflowBar，宽度不足时会自动转为纵向排列；
+            // 旧的实现把三个按钮塞进一个 Row，OverflowBar 只看到“一个超宽子项”，
+            // 于是无法换行，窄屏上“连带文件删除/取消/确定”的文字会溢出弹窗边界。
+            // 这里改为把按钮作为 actions 的独立子项交给 OverflowBar 处理，
+            // 同时用 actionsAlignment/actionsOverflowAlignment 保持原有排布意图。
+            actionsAlignment: MainAxisAlignment.spaceBetween,
+            actionsOverflowAlignment: OverflowBarAlignment.end,
+            actionsOverflowDirection: VerticalDirection.down,
+            actionsOverflowButtonSpacing: 4,
             actions: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Visibility(
-                    visible: showNeutral,
-                    child: TextButton(
-                      onPressed: () {
-                        if (autoDismiss) {
-                          dlgCtl.close();
-                        }
-                        onNeutral?.call();
-                      },
-                      child: Text(neutralText!),
-                    ),
-                  ),
-                  IntrinsicWidth(
-                    child: Row(
-                      children: [
-                        Visibility(
-                          visible: showCancel,
-                          child: TextButton(
-                            onPressed: () {
-                              if (autoDismiss) {
-                                dlgCtl.close();
-                              }
-                              onCancel?.call();
-                            },
-                            child: Text(cancelText!),
-                          ),
-                        ),
-                        Visibility(
-                          visible: showOk,
-                          child: TextButton(
-                            onPressed: () {
-                              if (autoDismiss) {
-                                dlgCtl.close();
-                              }
-                              onOk?.call();
-                            },
-                            child: Text(okText!),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+              Visibility(
+                visible: showNeutral,
+                maintainSize: false,
+                maintainAnimation: false,
+                maintainState: false,
+                child: TextButton(
+                  onPressed: () {
+                    if (autoDismiss) {
+                      dlgCtl.close();
+                    }
+                    onNeutral?.call();
+                  },
+                  child: Text(neutralText!, textAlign: TextAlign.center),
+                ),
+              ),
+              Visibility(
+                visible: showCancel,
+                maintainSize: false,
+                maintainAnimation: false,
+                maintainState: false,
+                child: TextButton(
+                  onPressed: () {
+                    if (autoDismiss) {
+                      dlgCtl.close();
+                    }
+                    onCancel?.call();
+                  },
+                  child: Text(cancelText!, textAlign: TextAlign.center),
+                ),
+              ),
+              Visibility(
+                visible: showOk,
+                maintainSize: false,
+                maintainAnimation: false,
+                maintainState: false,
+                child: TextButton(
+                  onPressed: () {
+                    if (autoDismiss) {
+                      dlgCtl.close();
+                    }
+                    onOk?.call();
+                  },
+                  child: Text(okText!, textAlign: TextAlign.center),
+                ),
               ),
             ],
           ),

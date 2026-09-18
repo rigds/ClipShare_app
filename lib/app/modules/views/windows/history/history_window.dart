@@ -338,7 +338,6 @@ class _HistoryWindowState extends State<HistoryWindow> with WindowListener, Wind
 
   @override
   Widget build(BuildContext context) {
-    final canMergeCopy = _selectionController.canMergeCopy;
     return Scaffold(
       body: CustomKeyboardListener(
         shortcuts: [
@@ -435,64 +434,76 @@ class _HistoryWindowState extends State<HistoryWindow> with WindowListener, Wind
         ),
       ),
       floatingActionButtonLocation: ExpandableFab.location,
-      floatingActionButton: ClipMultiSelectionFab(
-        distance: 70,
-        selectMode: _selectionController.enabled,
-        selectedCount: _selectionController.selectedCount,
-        totalCount: _list.length,
-        showBackToTopButton: _showBackToTopButton,
-        onBackToTop: () {
-          Future.delayed(100.ms, () {
-            _scrollController.animateTo(
-              0,
-              duration: 500.ms,
-              curve: Curves.easeInOut,
-            );
-          });
-        },
-        actions: [
-          ClipMultiSelectionFabAction(
-            onPressed: _exitSelectionMode,
-            tooltip: "${TranslationKey.deselect.tr} (${Constants.selectionExitShortcutLabel})",
-            child: const Icon(MdiIcons.cancel),
-          ),
-          ClipMultiSelectionFabAction(
-            onPressed: _list.isEmpty
-                ? null
-                : () {
-                    final items =
-                        _list.map((entry) => entry.data).toList(growable: false);
-                    _selectionController.toggleSelectAll(items);
-                    _refreshState();
-                  },
-            tooltip: _selectionController
-                    .allSelected(_list.map((entry) => entry.data))
-                ? TranslationKey.cancelSelectAll.tr
-                : TranslationKey.selectAll.tr,
-            child: Icon(
-              _selectionController
-                      .allSelected(_list.map((entry) => entry.data))
-                  ? Icons.deselect
-                  : Icons.select_all,
-            ),
-          ),
-          ClipMultiSelectionFabAction(
-            onPressed: canMergeCopy ? () async {
-              await multiWindowService.copyContent(0, _selectionController.mergedContent);
-              if (!mounted) {
-                return;
-              }
-              Global.showSnackBarSuc(
-                context: context,
-                text: TranslationKey.copySuccess.tr,
-              );
-              _exitSelectionMode();
-            } : null,
-            tooltip: TranslationKey.copyMergedContent.tr,
-            child: const Icon(Icons.content_copy_rounded),
-          ),
-        ],
+      floatingActionButton: _buildSelectionFab(),
+    );
+  }
+
+  Widget _buildSelectionFab() {
+    // 注意：canMergeCopy 原本是 build() 内的局部变量，这里必须自行计算。
+    final canMergeCopy = _selectionController.canMergeCopy;
+    final actions = [
+      ClipMultiSelectionFabAction(
+        onPressed: _exitSelectionMode,
+        tooltip:
+            "${TranslationKey.deselect.tr} (${Constants.selectionExitShortcutLabel})",
+        child: const Icon(MdiIcons.cancel),
       ),
+      ClipMultiSelectionFabAction(
+        onPressed: _list.isEmpty
+            ? null
+            : () {
+                final items =
+                    _list.map((entry) => entry.data).toList(growable: false);
+                _selectionController.toggleSelectAll(items);
+                _refreshState();
+              },
+        tooltip: _selectionController.allSelected(_list.map((entry) => entry.data))
+            ? TranslationKey.cancelSelectAll.tr
+            : TranslationKey.selectAll.tr,
+        child: Icon(
+          _selectionController.allSelected(_list.map((entry) => entry.data))
+              ? Icons.deselect
+              : Icons.select_all,
+        ),
+      ),
+      ClipMultiSelectionFabAction(
+        onPressed: canMergeCopy
+            ? () async {
+                await multiWindowService.copyContent(
+                  0,
+                  _selectionController.mergedContent,
+                );
+                if (!mounted) {
+                  return;
+                }
+                Global.showSnackBarSuc(
+                  context: context,
+                  text: TranslationKey.copySuccess.tr,
+                );
+                _exitSelectionMode();
+              }
+            : null,
+        tooltip: TranslationKey.copyMergedContent.tr,
+        child: const Icon(Icons.content_copy_rounded),
+      ),
+    ];
+    return ClipMultiSelectionFab(
+      // 与主列表共用同一套半径计算规则，保证不同窗口展开疏密一致。
+      distance: ClipMultiSelectionFab.suggestDistance(actions.length),
+      selectMode: _selectionController.enabled,
+      selectedCount: _selectionController.selectedCount,
+      totalCount: _list.length,
+      showBackToTopButton: _showBackToTopButton,
+      onBackToTop: () {
+        Future.delayed(100.ms, () {
+          _scrollController.animateTo(
+            0,
+            duration: 500.ms,
+            curve: Curves.easeInOut,
+          );
+        });
+      },
+      actions: actions,
     );
   }
 }

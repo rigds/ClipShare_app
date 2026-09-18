@@ -150,3 +150,100 @@ WebDAV 自动建目录、签名回退）全部保留，不受影响。
   lib/app/handlers/sync/file_sync_handler.dart
   lib/app/modules/settings_module/pages/settings_notification_page.dart
 验证：dart analyze 无新增问题；Kotlin 与 cs_user 原版逐字节一致。
+
+
+【2026-09-17】修复：多选浮动按钮（FAB）与删除弹窗的 3 个 UI 问题
+
+问题1：右下角多选 FAB 菜单"折叠状态不统一 + 展开后按钮拥挤"
+根因A（折叠态自身不统一）：旧版 clip_multi_selection_fab.dart 里各个子件都用
+      **互不相干的硬编码坐标/尺寸**拼在同一 Stack 里：
+        - 计数徽标：固定 right:85 / bottom:15 / 高 48
+        - 回到顶部：固定 right:15 / bottom:(selectMode?85:15)，用普通
+          FloatingActionButton（直径 56）
+        - 主 FAB（ExpandableFab）：直径 56，但没有 fanAngle、没有 heroTag
+      三者尺寸（48/56/56）、间距（85/15 混用）、对齐基准都不一致，
+      加上两个 FAB 均未设置唯一 heroTag，切页/重建时还会互相干扰，
+      表现为"折叠态按钮大小不一、位置忽左忽右"。
+根因B（展开后拥挤）：主列表（clip_list_fab.dart）写死 distance:145、
+      历史弹窗（history_window.dart）写死 distance:70，两处硬编码且不同。
+      而两处动作数量不同（主列表 5 个、历史弹窗 3 个），同一半径下
+      相邻按钮圆心距 2·R·sin(步长/2) 差别很大：
+        主列表 145 → 间距≈56.5px（勉强够）
+        历史弹窗  70 → 间距≈53.6px（小于按钮直径 56 → 互相叠住=拥挤）
+修复：
+  1. 新增静态方法 ClipMultiSelectionFab.suggestDistance(int actionCount)，
+     按"相邻按钮圆心距 >= 按钮直径 + 间隙"反推半径：
+       R >= spacing / (2·sin(步长/2))，步长 = 90° / (actionCount - 1)，
+     叠加主 FAB 半径余量后 clamp 到 [96,168] 防飞出屏幕。
+     主列表与历史弹窗都改用 suggestDistance(actions.length)：
+       主列表(5) → 168（间距≈65.6px）；历史弹窗(3) → 116.8（间距≈89.4px）。
+     两处共用同一规则，历史弹窗不再拥挤，且疏密观感统一。
+  2. 统一折叠态布局常量，全部由公共常量推导，不再散落魔法数：
+     主 FAB 直径 fabSize=56、屏幕边距 margin=16、徽标高 44/圆角 22、
+     徽标与按钮间隙 _badgeGap=12、展开态回到顶部上移 (fabSize+8)。
+  3. "回到顶部"改用 FloatingActionButton.small（直径 40），折叠态与主 FAB
+     同一底线、展开态上移一格让位扇形。
+  4. 补齐 heroes 与手势：主 FAB/回顶按钮分别设唯一 heroTag
+     ('clipSelectionFab' / 'clipBackToTopFab')，隐蔽按钮用 IgnorePointer +
+     AnimatedOpacity，既保留淡入淡出动画又不吞手势。
+涉及文件：lib/app/widgets/clip/clip_multi_selection_fab.dart、
+          lib/app/widgets/clip_list_view/clip_list_fab.dart、
+          lib/app/modules/views/windows/history/history_window.dart
+
+问题2：点开右下角多选菜单后，扇形会"打开又自动关闭"
+根因（已核对 flutter_expandable_fab 2.5.2 源码，expandable_fab.dart 第 231-240 行）：
+      ExpandableFabState.didUpdateWidget 里无条件执行 close()：
+        // Always reset FAB to closed state when widget is rebuilt
+        close();
+      而列表在滚动、刷新、选中项变化时都会 setState 重建整棵 FAB 子树，
+      每次都生成一个新的 ExpandableFab 实例 → 触发 didUpdateWidget → 强制收起，
+      表现为"刚点开就被关闭"。
+修复：新增 _MultiSelectionFabHost（StatefulWidget）把 ExpandableFab 缓存在 State
+      字段 _fab 中，并在 build 里复用同一个实例。Flutter 的 updateChild 遇到
+      newWidget == oldWidget（同一实例引用）会走快路径直接跳过更新，
+      didUpdateWidget 不再被触发，展开状态得以保持。
+      仅在真正影响几何/内容/可用性的输入变化时才重建缓存：
+      distance 变化，或动作列表的"数量 / 禁用态 / 图标"变化（_sameActions 判断）。
+涉及文件：lib/app/widgets/clip/clip_multi_selection_fab.dart
+
+问题3：文件传输长按删除弹窗底部按钮文字溢出边界
+根因：Global.showTipsDialog（lib/app/utils/global.dart）把"中性/取消/确定"三个
+      按钮全部塞进**单独一个 Row** 再作为 AlertDialog.actions 的唯一子项。
+      而 AlertDialog 本会把 actions 交给 OverflowBar 布局，宽度不足时自动转为
+      纵向排列；塞进一个 Row 后 OverflowBar 只看到"一个超宽子项"，
+      永远不会溢出到纵向，导致窄屏上"连带文件删除 / 取消 / 仅删除记录"
+      （合计 13 个汉字 + 三个按钮的内边距）超出弹窗边界、文字被裁切/溢出。
+      该弹窗正是文件传输页同步文件长按删除时调用的
+      （sync_file_page.dart → neutralText: 连带文件删除、okText: 仅删除记录）。
+修复：把三个按钮改为 actions 的**独立子项**交给 OverflowBar 处理，
+      并显式声明动作区布局：
+        actionsAlignment: MainAxisAlignment.spaceBetween       // 宽屏：两端对齐
+        actionsOverflowAlignment: OverflowBarAlignment.end    // 换行后右对齐
+        actionsOverflowDirection: VerticalDirection.down      // 纵向堆叠
+        actionsOverflowButtonSpacing: 4
+      Visibility 补全 maintainSize/maintainAnimation/maintainState（均为 false，
+      满足 Visibility 的构造断言，隐藏时不占位）；
+      按钮文字加 textAlign: TextAlign.center。窄屏自动换行，文字不再越界，
+      宽屏仍保持"左侧中性按钮、右侧确认按钮"的原排布意图。
+涉及文件：lib/app/utils/global.dart
+
+【验证说明（如实）】
+- 已通读 Flutter 3.35.1 官方源码确认：AlertDialog 用 OverflowBar 包裹 actions，
+  OverflowBar 在子项总宽超过可用宽度时会切换为纵向布局（overflow_bar.dart
+  RenderOverflowBar.performLayout 第 522-541 行），本修复方向与框架行为一致。
+- 已核实 flutter_expandable_fab 2.5.2 全部用到的构造参数存在且类型正确
+  （distance / type / fanAngle / overlayStyle / openButtonBuilder /
+  closeButtonBuilder / children），并确认 didUpdateWidget -> close() 的源码行为。
+- 已逐项核对改动引用的符号均真实存在：TranslationKey 的
+  deselect/cancelSelectAll/selectAll/copyMergedContent/copySuccess/output/delete/
+  backToTop/deleteWithFiles/onlyDeleteRecordsText 等、NumberExt 的 .ms 扩展、
+  ClipListView.list 为 List<ClipData>、CompactClipData.data 为 ClipData、
+  ClipMultiSelectionController 的 allSelected/selectAll/toggleSelectAll 签名。
+- 修正的连带问题：历史弹窗中原本 build() 内的局部变量 canMergeCopy 在新抽取的
+  _buildSelectionFab() 方法中会失作用域，已改为在方法内自行计算，
+  并移除 build() 中因此产生的未使用局部变量。
+- 括号/花括号结构已用脚本逐字符校验平衡通过。
+- 说明：本沙箱内的 QEMU 用户态模拟无法运行 Dart VM（JIT/AOT 快照执行均触发
+  QEMU internal SIGSEGV），因此本轮**未能**在本机实际执行 flutter analyze /
+  kernel_snapshot 编译；改动为源码级核对，仍建议在正常 PC 上跑一次
+  flutter analyze 与构建确认。
