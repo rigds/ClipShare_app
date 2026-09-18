@@ -61,6 +61,27 @@ class HomeController extends GetxController with WidgetsBindingObserver, ScreenO
   //多选监听
   final Set<MultiSelectionPopScopeDisableListener> _multiSelectionPopScopeDisableListeners = {};
 
+  /// 最近一次被内层页面（如多选态列表）消费的返回手势时间。
+  /// 嵌套 PopScope 的回调都注册在同一个 Set 中，遍历顺序不保证，
+  /// 因此不能用布尔标记（若外层先执行会读到旧值）；
+  /// 改用时间戳判定：外层只要发现近期内层已消费过返回，就跳过一次。
+  DateTime? _lastConsumedBackAt;
+
+  /// 内层页面消费返回手势后调用，记录时间戳通知外层跳过本轮处理。
+  void markBackGestureConsumed() {
+    _lastConsumedBackAt = DateTime.now();
+  }
+
+  /// 外层判断：近期（500ms 内）内层是否已消费过返回手势。
+  /// 判定后不清除时间戳，以适配“外层回调可能早于内层”的顺序不确定性。
+  bool wasBackGestureRecentlyConsumed() {
+    final at = _lastConsumedBackAt;
+    if (at == null) {
+      return false;
+    }
+    return DateTime.now().difference(at) < const Duration(milliseconds: 500);
+  }
+
   //region 在小屏下首页中排除的导航栏和页面
   static const _rulesNavItemKey = Key('rules');
   static const _rulesPageKey = Key('rules');

@@ -333,3 +333,65 @@ WebDAV 自动建目录、签名回退）全部保留，不受影响。
 
 说明：syncingFilePageDeleteSelectedDialogContent 与 onlyDeleteRecordsText 两个
       翻译 key 失去引用（保留 enum 与翻译条目，未删除，不影响编译与其他调用）。
+
+【2026-09-17 补充5】多选撤回后偶发退出应用 / 长按震动两下 修复
+--------------------------------------------------------
+问题现象：
+  a) 多选状态下选中若干项后再撤回选中，有时会直接退出应用；
+  b) 异常时点按/长按会连续震动两下（正常应为一下）。
+
+根因分析：
+  1) 震动两下：ClipDataCardCompact 的 Slidable 侧滑补选入口参数过于激进——
+     extentRatio: 0.01、dismissThreshold: 0.1，阈值近似为零。
+     长按进入多选时手指必然存在微小位移，会被 DismissiblePane 误判为"侧滑补选"，
+     于是同一次手势内 onLongPress 与 onToggleSelected 先后触发，各自调用
+     HapticFeedback.mediumImpact()，表现为震动两下；同时 onToggleSelected
+     会重算选中集合（selectRange），可能把刚建立的多选态意外清空。
+  2) 偶发退出应用：多选态下按边缘返回时，只有外层 HomePage 的 PopScope
+     在做拦截，而它依赖 appConfig 全局多选开关。该开关可能因列表刷新、
+     控制器自动退出等时序被提前置为 false，一旦判断失败，返回手势会穿透到
+     外层"二次返回退出应用"逻辑，累计计时后用户再返回一次即真的退出。
+
+改动文件（4 个）：
+
+1) lib/app/widgets/clip/clip_data_card_compact.dart
+   - 新增 _lastLongPressAt 时间戳与 _longPressGuardWindow（600ms）时间窗，
+     以及 _isInLongPressGuard 判定。
+   - onLongPress 包装：先记录时间戳再调用原回调；新增 onTapDown 清空时间戳，
+     保证每个新手势正常重置，不影响正常的侧滑补选。
+   - Slidable 参数放宽：extentRatio 0.01 → 0.15，dismissThreshold 0.1 → 0.15，
+     只有明确的横向滑动才会触发补选入口。
+   - confirmDismiss 内新增守卫：处于长按时间窗内则直接返回 false，不重复补选。
+     用时间窗而非布尔标记，避免标记未复位导致侧滑补选永久失效。
+
+2) lib/app/widgets/clip_list_view.dart
+   - build 外层由原本直接返回 Scaffold，改为用 PopScope 包裹。
+   - canPop: !_selectionController.enabled —— 只要本地多选态仍打开，就吃掉这次
+     返回并调用 _exitSelectionMode() 清空多选，不再依赖 appConfig 全局开关，
+     从根本上杜绝返回手势穿透导致的"退出应用"。
+   - 清空多选后调用 Get.find<HomeController>().markBackGestureConsumed()，
+     通知外层本轮返回已被内层消费。
+
+3) lib/app/modules/home_module/home_controller.dart
+   - 新增 _lastConsumedBackAt 时间戳与 markBackGestureConsumed() /
+     wasBackGestureRecentlyConsumed() 两个方法。
+   - 采用时间戳（500ms 窗口）而非布尔标记：嵌套 PopScope 的回调都注册在同一个
+     Set 中，遍历顺序不保证，布尔标记在"外层先执行"时会读到旧值而失效。
+   - 该判定为只读不改写，以适配两种执行顺序。
+
+4) lib/app/modules/home_module/home_page.dart
+   - onPopInvoked 开头新增判定：若内层刚消费过本轮返回，则直接 return，
+     避免把"清空多选"误计入"再按一次退出应用"的计时。
+
+收敛性说明（两种回调顺序均已推演）：
+  - 内层先执行：内层清空多选并打时间戳 → 外层读到时间戳直接 return。
+  - 外层先执行：全局开关此时仍为 true → 外层正常 disableMultiSelectionMode
+    并通知内层清空 → 内层再收到时 enabled 已为 false，不重复处理。
+  两种顺序都收敛到"清空多选且不累加退出计时"。
+  非多选态下内层 canPop=true、不拦截，外层逻辑与改动前完全一致。
+
+⚠ 待真机验证：
+  Flutter 在 popDisposition 为 doNotPop 时，会禁用 CupertinoPageRoute 的边缘
+  滑动手势（routes.dart:1900）。Android 使用 MaterialPageRoute，其返回手势
+  依赖系统预测性返回，行为不同，本沙箱无法运行 Dart VM，未能实测。
+  请在真机上确认：多选态下边缘返回是否清空多选且不退出应用。

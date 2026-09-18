@@ -57,6 +57,13 @@ class HomePage extends GetView<HomeController> {
     return PopScope(
       canPop: false,
       onPopInvoked: (bool didPop) {
+        // 嵌套 PopScope 的回调都会收到通知且遍历顺序不保证，
+        // 这里以“内层是否有本地多选态”为准做二次判定：
+        // 只要当前页仍处于多选态、或内层刚刚消费过本轮返回，外层就跳过，
+        // 避免把“清空多选”误计入“再按一次退出应用”。
+        if (controller.wasBackGestureRecentlyConsumed()) {
+          return;
+        }
         if (appConfig.isMultiSelectionMode(currentPageController)) {
           appConfig.disableMultiSelectionMode(true);
           controller.notifyMultiSelectionPopScopeDisable();

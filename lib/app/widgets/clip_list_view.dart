@@ -405,24 +405,42 @@ class ClipListViewState extends State<ClipListView>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: CustomKeyboardListener(
-        shortcuts: [
-          KeyboardShortcut(
-            physicalKeys: {PhysicalKeyboardKey.escape},
-            onTrigger: _exitSelectionMode,
-          ),
-          KeyboardShortcut(
-            physicalKeys: {PhysicalKeyboardKey.delete},
-            onTrigger: () {
-              _showSelectedDeleteDialog();
-            },
-          ),
-        ],
-        child: _buildBody(),
+    return PopScope(
+      // 边缘返回手势的兜底拦截：只要本地多选态仍处于打开状态，
+      // 就吃掉这次返回并清空多选，不依赖 appConfig 的全局开关。
+      // 全局开关可能因列表刷新、自动退出等时序被提前置为 false，
+      // 若仅依赖它判断，返回手势会穿透到外层“再次返回退出应用”逻辑。
+      canPop: !_selectionController.enabled,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) {
+          return;
+        }
+        if (_selectionController.enabled) {
+          _exitSelectionMode();
+          // 通知外层 HomePage：本轮返回已被多选态消费，
+          // 避免外层再计入一次“再按一次退出应用”。
+          Get.find<HomeController>().markBackGestureConsumed();
+        }
+      },
+      child: Scaffold(
+        body: CustomKeyboardListener(
+          shortcuts: [
+            KeyboardShortcut(
+              physicalKeys: {PhysicalKeyboardKey.escape},
+              onTrigger: _exitSelectionMode,
+            ),
+            KeyboardShortcut(
+              physicalKeys: {PhysicalKeyboardKey.delete},
+              onTrigger: () {
+                _showSelectedDeleteDialog();
+              },
+            ),
+          ],
+          child: _buildBody(),
+        ),
+        floatingActionButtonLocation: ExpandableFab.location,
+        floatingActionButton: _buildFloatingActionButton(),
       ),
-      floatingActionButtonLocation: ExpandableFab.location,
-      floatingActionButton: _buildFloatingActionButton(),
     );
   }
 
