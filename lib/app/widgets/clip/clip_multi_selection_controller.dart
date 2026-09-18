@@ -74,14 +74,26 @@ class ClipMultiSelectionController {
   }
 
   /// 切换单条选择状态；仅在多选模式下生效。
+  ///
+  /// 取消掉最后一条选中项后会自动退出多选模式（`_enabled = false`），
+  /// 回到长按前的原始状态，避免出现“已无任何选中项却仍停留在多选态”的悬挂状态。
+  /// 调用方在 `toggleItem` 之后统一 `setState`，因此这里不需要触发重建。
   void toggleItem(ClipData item) {
     if (!_enabled) {
       return;
     }
     if (_selectedItems.contains(item)) {
       _selectedItems.remove(item);
+      _exitIfNothingSelected();
     } else {
       _selectedItems.add(item);
+    }
+  }
+
+  /// 选中集合为空时自动退出多选模式，保持“无选中即原始状态”的一致语义。
+  void _exitIfNothingSelected() {
+    if (_selectedItems.isEmpty) {
+      _enabled = false;
     }
   }
 
@@ -124,11 +136,16 @@ class ClipMultiSelectionController {
     for (var i = start; i <= end; i++) {
       _selectedItems.add(items[i]);
     }
+    _exitIfNothingSelected();
   }
 
   /// 列表刷新或删除后，移除已经不存在的数据，避免选中态指向失效项。
+  ///
+  /// 若清理后已无任何选中项，同样自动退出多选模式：用户删掉了所有已选项时，
+  /// 界面应回到原始状态，而不是残留一个计数为 0 的多选界面。
   void removeMissingItems(Iterable<ClipData> availableItems) {
     final availableSet = availableItems.toSet();
     _selectedItems.removeWhere((item) => !availableSet.contains(item));
+    _exitIfNothingSelected();
   }
 }

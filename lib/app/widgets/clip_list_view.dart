@@ -127,6 +127,11 @@ class ClipListViewState extends State<ClipListView>
       _lastListTailId = tailId;
       _minId = tailId;
       _selectionController.removeMissingItems(widget.list);
+      // 数据刷新后若选中项被清空，控制器会自动退出多选；此处同步关闭全局开关，
+      // 避免父级重建后界面仍处于“多选语义”（返回键拦截、底栏多选 UI）而选中数为 0。
+      if (!_selectionController.enabled && appConfig.isEnableMultiSelectionMode) {
+        appConfig.disableMultiSelectionMode(true);
+      }
     }
   }
 
@@ -304,6 +309,11 @@ class ClipListViewState extends State<ClipListView>
   }
 
   void _refreshState() {
+    // 控制器在“取消最后一项选中”时会自动退出多选（见 ClipMultiSelectionController），
+    // 此时需要同步关闭全局多选开关，否则 PopScope / 返回键拦截仍停留在多选语义上。
+    if (!_selectionController.enabled && appConfig.isEnableMultiSelectionMode) {
+      appConfig.disableMultiSelectionMode(true);
+    }
     setState(() {});
   }
 

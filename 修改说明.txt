@@ -247,3 +247,89 @@ WebDAV 自动建目录、签名回退）全部保留，不受影响。
   QEMU internal SIGSEGV），因此本轮**未能**在本机实际执行 flutter analyze /
   kernel_snapshot 编译；改动为源码级核对，仍建议在正常 PC 上跑一次
   flutter analyze 与构建确认。
+
+【2026-09-17 补充】取消选中最后一项时自动退出多选模式
+--------------------------------------------------------
+问题：多选模式下逐条取消选中，当取消到最后一项（选中数归零）时，界面仍停留在
+      多选状态——底部多选工具栏 / 计数为 0 的多选界面不会消失，需要额外点一次
+      关闭或返回键才能回到原始列表状态。
+
+根因：toggleItem / selectRange / removeMissingItems 只增删选中集合，从不检查
+      "集合是否已空"。选中数归零后 enabled 仍为 true，UI 继续按多选渲染。
+
+改动文件（2 个）：
+1) lib/app/widgets/clip/clip_multi_selection_controller.dart
+   - toggleItem：取消选中后调用新增的私有方法 _exitIfNothingSelected()，
+     集合为空时将 _enabled 置 false 自动退出多选。
+   - selectRange：末尾补充 _exitIfNothingSelected() 兜底（早期分支走 toggleItem）。
+   - removeMissingItems：清理失效项后同样调用 _exitIfNothingSelected()，
+     解决"删掉全部已选项后残留计数为 0 的多选界面"。
+   - 新增私有方法 _exitIfNothingSelected()，统一"无选中即退出"的判定，
+     保证各入口语义一致。
+   - 控制器内不触发重建，由调用方统一 setState（与既有约定一致）。
+
+2) lib/app/widgets/clip_list_view.dart
+   - _refreshState()：新增同步逻辑——若控制器已退出多选而全局开关
+     appConfig.isEnableMultiSelectionMode 仍为 true，则调用
+     disableMultiSelectionMode(true) 关闭，避免 PopScope / 返回键拦截、
+     底栏多选 UI 与选中数为 0 的状态不一致。
+   - didUpdateWidget()：列表尾部数据变化触发 removeMissingItems 后，
+     同样同步关闭全局多选开关（该路径不经 _refreshState）。
+
+作用范围：主列表与历史弹窗两个界面共用同一控制器，改动在控制器层统一生效，
+          无需修改任何调用点。取消最后一项选中（点击卡片或点击勾选框）均自动
+          回到原始状态；已取消选中项的界面不再出现"空多选"悬挂状态。
+
+影响面：仅新增 2 个判断分支 + 1 个私有方法，不改变选中/全选/区间选择/删除等
+        既有逻辑，无接口签名变更。
+
+【2026-09-17 补充2】多选计数徽标字号字重回调
+--------------------------------------------------------
+调整 lib/app/widgets/clip/clip_multi_selection_fab.dart 计数徽标（'已选 / 总数'）：
+- 字号 18 -> 20（恢复与原始版本一致的字号）
+- 移除 fontWeight: FontWeight.w600（此前新增的加粗），恢复默认常规字重，不再加粗
+- 容器高度 44 -> 48、圆角 22 -> 24（胶囊形）、水平内边距 14 -> 16，
+  按 20 号字重新配平，保证数字上下左右留白均匀、与主 FAB（56）比例协调
+
+【2026-09-17 补充3】计数徽标全部恢复原始样式
+--------------------------------------------------------
+按用户要求，lib/app/widgets/clip/clip_multi_selection_fab.dart 计数徽标
+（"已选 / 总数"）的全部外观参数恢复为与原始版本完全一致：
+- fontSize:          20（保持）
+- fontWeight:        不设置（默认常规，不加粗）
+- Container height:  48
+- BorderRadius:      circular(8) 圆角矩形
+- 水平内边距:        10
+说明：此前"补充2"中调整为 48/24/16 的胶囊风格已全部回退，徽标外观与
+      原始版本逐项一致。徽标外部新增的淡入淡出（AnimatedOpacity）与
+      定位计算不属于外观样式，保持不变。
+
+【2026-09-17 补充4】文件传输删除弹窗精简
+--------------------------------------------------------
+需求：文件传输长按/多选删除的弹窗原有三个按钮（连带文件删除 / 取消 / 仅删除记录），
+      按钮偏多且"删除原文件"这个次要选项占据了一个主按钮位；改为把该选项做成
+      内容区的勾选小框，按钮精简为两个。
+
+改动文件（3 个）：
+1) lib/app/modules/sync_file_module/sync_file_page.dart
+   - 删除弹窗由三按钮改为两按钮：okText 改为"删除"，取消 showNeutral，
+     移除 neutralText / onNeutral。
+   - 内容区通过 customWidget 增加 CheckboxListTile「同时删除已发送的原文件」，
+     状态用 RxBool deleteFiles 管理，默认不勾选。
+   - onOk：controller.deleteRecord(deleteFiles.value) —— 勾选则连带删除原文件，
+     不勾选则仅删除记录。
+   - 弹窗正文由 syncingFilePageDeleteSelectedDialogContent 改为 multiDeleteAsk
+     （"是否删除选中的 @length 项？"）。原副标题"发送记录的文件不会被删除"
+     与新增的勾选框语义冲突，已移除；同时与主列表删除弹窗保持文案一致。
+   - 实现方式与主列表删除弹窗（clip_list_view.dart 的 CheckboxListTile +
+     customWidget 模式）保持统一。
+
+2) lib/app/data/enums/translation_key.dart
+   - 新增枚举 deleteWithSourceFiles。
+
+3) lib/app/translations/zh_cn_translations.dart / en_us_translations.dart
+   - 新增文案：
+     中文 "同时删除已发送的原文件" / 英文 "Also delete the sent source files"。
+
+说明：syncingFilePageDeleteSelectedDialogContent 与 onlyDeleteRecordsText 两个
+      翻译 key 失去引用（保留 enum 与翻译条目，未删除，不影响编译与其他调用）。

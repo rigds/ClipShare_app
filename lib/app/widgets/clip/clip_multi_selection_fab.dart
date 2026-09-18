@@ -95,19 +95,18 @@ class ClipMultiSelectionFab extends StatelessWidget {
                 opacity: selectMode ? 1 : 0,
                 duration: 200.ms,
                 child: Container(
-                  height: 44,
+                  height: 48,
                   decoration: BoxDecoration(
                     color: colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(22),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   child: Center(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
                       child: Text(
                         '$selectedCount / $totalCount',
                         style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 20,
                           color: colorScheme.onPrimaryContainer,
                         ),
                       ),

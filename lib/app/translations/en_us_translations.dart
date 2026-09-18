@@ -1440,6 +1440,8 @@ class EnUSTranslation extends AbstractTranslations {
         return "Keep Last";
       case TranslationKey.onlyLocal:
         return "Only Local";
+      case TranslationKey.deleteWithSourceFiles:
+        return "Also delete the sent source files";
       case TranslationKey.enablePIP:
         return "Enable Picture-in-Picture";
       case TranslationKey.enablePIPTip:

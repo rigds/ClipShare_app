@@ -1438,6 +1438,8 @@ class ZhCNTranslation extends AbstractTranslations {
         return "保留最近";
       case TranslationKey.onlyLocal:
         return "仅本地";
+      case TranslationKey.deleteWithSourceFiles:
+        return "同时删除已发送的原文件";
       case TranslationKey.enablePIP:
         return "开启画中画悬浮窗";
       case TranslationKey.enablePIPTip:

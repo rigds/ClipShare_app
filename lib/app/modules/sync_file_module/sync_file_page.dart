@@ -197,24 +197,32 @@ class SyncFilePage extends GetView<SyncFileController> {
                                   child: FloatingActionButton(
                                     onPressed: () async {
                                       DialogController? tipsDialog;
+                                      // 勾选框状态：是否连带删除已发送的原文件。
+                                      // 勾选等价于原来的“连带文件删除”，不勾选等价于“仅删除记录”。
+                                      final deleteFiles = false.obs;
                                       tipsDialog = await Global.showTipsDialog(
                                         context: context,
-                                        text: TranslationKey.syncingFilePageDeleteSelectedDialogContent.trParams({"length": controller.selected.length.toString()}),
+                                        text: TranslationKey.multiDeleteAsk.trParams({"length": controller.selected.length.toString()}),
                                         showCancel: true,
-                                        showNeutral: true,
-                                        neutralText: TranslationKey.deleteWithFiles.tr,
-                                        okText: TranslationKey.onlyDeleteRecordsText.tr,
+                                        okText: TranslationKey.delete.tr,
                                         autoDismiss: false,
+                                        customWidget: Container(
+                                          margin: 10.insetT,
+                                          child: Obx(() {
+                                            return CheckboxListTile(
+                                              title: Text(TranslationKey.deleteWithSourceFiles.tr),
+                                              value: deleteFiles.value,
+                                              contentPadding: EdgeInsets.zero,
+                                              controlAffinity: ListTileControlAffinity.leading,
+                                              onChanged: (selected) {
+                                                deleteFiles.value = selected ?? false;
+                                              },
+                                            );
+                                          }),
+                                        ),
                                         onOk: () async {
                                           await tipsDialog!.close();
-                                          await controller.deleteRecord(false);
-                                          controller.selected.clear();
-                                          controller.selectMode = false;
-                                          appConfig.disableMultiSelectionMode(true);
-                                        },
-                                        onNeutral: () async {
-                                          await tipsDialog!.close();
-                                          await controller.deleteRecord(true);
+                                          await controller.deleteRecord(deleteFiles.value);
                                           controller.selected.clear();
                                           controller.selectMode = false;
                                           appConfig.disableMultiSelectionMode(true);

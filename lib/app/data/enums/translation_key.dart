@@ -698,6 +698,7 @@ enum TranslationKey {
   moreActions,
   retainDays,
   onlyLocal,
+  deleteWithSourceFiles,
   enablePIP,
   enablePIPTip,
   noPhotoPermission,
