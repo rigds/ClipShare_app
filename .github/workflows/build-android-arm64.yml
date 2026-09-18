@@ -1,0 +1,76 @@
+name: build-android-apk-arm64
+
+# 独立工作流：只构建 arm64 单 ABI（AOT 编译只跑 1 遍，比全 ABI 快很多）
+# 不修改也不依赖 scripts/build_apk.bat，与原有 build-android-apk 工作流并存
+# 产物：app-arm64-v8a-release.apk（仅 64 位 ARM 真机可安装）
+permissions:
+  contents: write
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.41.9
+          cache: true
+
+      - name: Setup Java (Android)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Restore keystore (secrets 缺失时自动回退 debug 签名)
+        shell: bash
+        run: |
+          if [ -n "$ANDROID_KEY_PROPERTIES_BASE64" ] && [ -n "$ANDROID_JKS_BASE64" ]; then
+            echo "$ANDROID_KEY_PROPERTIES_BASE64" | base64 --decode > android/key.properties
+            echo "$ANDROID_JKS_BASE64" | base64 --decode > android/app/clipshare.jks
+            echo "keystore restored"
+          else
+            echo "keystore secrets 未配置，跳过（build.gradle 会自动回退 debug 签名）"
+          fi
+        env:
+          ANDROID_KEY_PROPERTIES_BASE64: ${{ secrets.ANDROID_KEY_PROPERTIES_BASE64 }}
+          ANDROID_JKS_BASE64: ${{ secrets.ANDROID_JKS_BASE64 }}
+
+      - name: Build APK (arm64 only)
+        shell: pwsh
+        run: |
+          flutter pub get
+          flutter build apk --release --target-platform android-arm64 --split-per-abi
+
+      - name: Prepare APK artifact
+        shell: pwsh
+        run: |
+          $apkDir = "build/app/outputs/apk/release"
+          if (-not (Test-Path $apkDir)) {
+            Write-Error "APK directory not found: $apkDir"
+            exit 1
+          }
+          $apks = Get-ChildItem $apkDir -Filter *.apk
+          if (-not $apks -or $apks.Count -eq 0) {
+            Write-Error "No APK found in $apkDir"
+            exit 1
+          }
+          Write-Host "Found $($apks.Count) APK(s):"
+          $apks | ForEach-Object { Write-Host " - $($_.Name)" }
+          New-Item -ItemType Directory -Path upload -Force | Out-Null
+          Copy-Item $apks.FullName upload/ -Force
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk-arm64
+          path: upload/*.apk
+          overwrite: true
