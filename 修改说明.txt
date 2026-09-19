@@ -548,13 +548,27 @@ WebDAV 自动建目录、签名回退）全部保留，不受影响。
 ■ 顺带保留
   - 多选态点击只切换单项（toggleItem），不再触发 selectRange，
     计数与蓝框严格一一对应 → 修复"点一下选中多项、计数不增加"。
-  - _longPressGuardWindow 保持 1000ms（仍用于屏蔽侧滑补选误触发）。
+
+■ 侧滑（补选）功能：保持原样，未做任何改动
+  排查过程中曾一度怀疑"长按抬手时的微小位移被 Slidable 误判为侧滑"，
+  并据此改过 extentRatio / dismissThreshold，还加过 _longPressGuardWindow
+  时间窗来屏蔽。但用户反馈明确是"无位移、紧挨着快速两下"，
+  该假设与现象不符，已在最终版本中【全部回滚】：
+
+    - extentRatio:    0.15  → 恢复 0.01（与原版一致）
+    - dismissThreshold: 0.15 → 恢复 0.1 （与原版一致）
+    - confirmDismiss: 移除 _isInLongPressGuard 守卫，恢复直接调用 onToggleSelected
+    - 移除 _lastLongPressAt / _longPressGuardWindow / onTapDown 清空逻辑
+
+  即：侧滑补选的灵敏度与触发时机与原始版本完全相同，
+  本次修复只针对震动来源（InkWell.enableFeedback）与选中语义（toggleItem）。
 
 ■ 待真机验证（同前）
   本沙箱无法运行 Dart VM，请在有 Flutter 环境的 PC 上执行
   flutter analyze 与构建后，于真机确认：
     1) 长按历史记录 → 只震动一下（快速两下的问题应消失）。
     2) 多选态点击某项 → 只选中该项，底部计数 +1。
+    3) 侧滑补选 → 行为与原始版本一致（灵敏度未变）。
 
 ════════════════════════════════════════════════════════════════════
 【2026-09-19 补充·UI 统一】历史记录计数 与 文件传输计数 样式对齐
@@ -655,3 +669,54 @@ WebDAV 自动建目录、签名回退）全部保留，不受影响。
     → 宽度为 0，边框实际不渲染，无视觉影响。
   - pending_file_list.dart 中的 Colors.blueGrey（次要文字/图标色），
     在深色背景下对比度尚可。
+
+════════════════════════════════════════════════════════════════════
+【2026-09-19 补充·回滚】侧滑参数 与 回到顶部按钮尺寸
+════════════════════════════════════════════════════════════════════
+
+■ 一、侧滑（区间补选）参数：全部回滚为原版
+
+  回滚原因：
+    排查"长按震动两下"时，曾错误假设"长按抬手时的微小位移被 Slidable
+    误判为侧滑补选"，据此改动了侧滑参数并加了长按守卫时间窗。
+    但用户反馈明确是"无位移、紧挨着快速两下"，该假设与现象不符。
+    后来在 Flutter 源码中确认真实根因是 InkWell.enableFeedback
+    （系统反馈与手动震动叠加），与侧滑完全无关。
+
+  回滚内容（clip_data_card.dart / clip_data_card_compact.dart）：
+    - extentRatio:       0.15  → 0.01（原版）
+    - dismissThreshold:  0.15  → 0.1 （原版）
+    - confirmDismiss:     移除 _isInLongPressGuard 守卫，恢复直接调用 onToggleSelected
+    - 删除字段与逻辑：_lastLongPressAt / _longPressGuardWindow / _isInLongPressGuard
+    - 删除 onTapDown 中清空时间窗的代码
+
+  结果：侧滑补选的灵敏度与触发时机与原始版本完全一致。
+
+■ 二、回到顶部按钮尺寸：恢复为原版
+
+  问题：按钮被改小了（用户反馈"回到置顶那个图标也变小了"）。
+
+  原因：做"折叠态布局统一"时，为与主 FAB 对齐，误将标准尺寸改成了小尺寸：
+      FloatingActionButton.small(...)   // 直径 40（错误）
+      FloatingActionButton(...)         // 直径 56（原版）
+
+  恢复内容（clip_multi_selection_fab.dart）：
+    - FloatingActionButton.small → FloatingActionButton（标准尺寸，直径 56）
+    - 位置恢复原版数值：right: 15，bottom: selectMode ? 85 : 15
+    - 计数徽标位置恢复原版数值：right: 85，bottom: 15
+    - 清理不再使用的 _badgeGap 常量
+
+■ 三、保留项（明确说明）
+  clip_multi_selection_fab.dart 中保留以下改动：
+    - _MultiSelectionFabHost：修复"扇形展开后自动关闭"（复用同一 widget 实例，
+      规避 flutter_expandable_fab 的 didUpdateWidget 强制 close）。
+    - IgnorePointer + AnimatedOpacity：显隐改为淡入淡出（用户已确认保留）。
+    - heroTag: 'clipSelectionFab'：避免多窗口 hero 标签冲突。
+    - fanAngle: 90：扇形角度显式固定。
+  上述改动均不改变按钮尺寸与位置。
+
+■ 最终震动链路（全项目）
+  - 多选/长按链路中 HapticFeedback 仅 2 处，位于两个卡片组件的 onLongPress 内，
+    各带 300ms 时间窗去重。
+  - 两处 InkWell 均 enableFeedback: false，系统不再额外震动。
+  - 单次长按 → 单次震动。

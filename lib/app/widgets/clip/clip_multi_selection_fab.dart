@@ -39,9 +39,6 @@ class ClipMultiSelectionFab extends StatelessWidget {
   /// 屏幕边缘安全间距。
   static const double margin = 16;
 
-  /// 计数徽标与右侧按钮之间的水平间隙。
-  static const double _badgeGap = 12;
-
   /// 展开态扇形半径推荐值（按动作数量计算，避免按钮堆叠、视觉拥挤）。
   ///
   /// 动作按钮直径 [fabSize]，扇形 90° 均分时相邻圆心距需不小于按钮直径 + 间隙，
@@ -80,15 +77,14 @@ class ClipMultiSelectionFab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    // 折叠态与展开态的纵坐标：展开时“回到顶部”上移一格给扇形让位。
-    final collapsedBottom = margin;
-    final expandedBottom = margin + fabSize + 8;
+    // 计数徽标底部与主 FAB 对齐。
+    final collapsedBottom = 15.0;
     return SizedBox.expand(
       child: Stack(
         children: [
           // 计数徽标：固定在“回到顶部按钮”左侧，底部与主 FAB 对齐，避免与扇形按钮重叠。
           Positioned(
-            right: margin + fabSize + _badgeGap,
+            right: 85,
             bottom: collapsedBottom,
             child: IgnorePointer(
               child: AnimatedOpacity(
@@ -116,16 +112,17 @@ class ClipMultiSelectionFab extends StatelessWidget {
               ),
             ),
           ),
-          // 回到顶部按钮：折叠态与主 FAB 同位，展开态上移；隐藏时不接收手势。
+          // 回到顶部按钮：尺寸与位置保持原版（标准 FAB，right/bottom 15）。
+          // 折叠态与主 FAB 同位，多选态上移给扇形让位。
           Positioned(
-            right: margin,
-            bottom: selectMode ? expandedBottom : collapsedBottom,
+            right: 15,
+            bottom: selectMode ? 85 : 15,
             child: IgnorePointer(
               ignoring: !showBackToTopButton,
               child: AnimatedOpacity(
                 opacity: showBackToTopButton ? 1 : 0,
                 duration: 200.ms,
-                child: FloatingActionButton.small(
+                child: FloatingActionButton(
                   heroTag: 'clipBackToTopFab',
                   onPressed: onBackToTop,
                   tooltip: TranslationKey.backToTop.tr,

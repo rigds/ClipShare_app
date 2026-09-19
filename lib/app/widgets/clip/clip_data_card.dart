@@ -81,34 +81,8 @@ class _ClipDataCardState extends State<ClipDataCard>
   late final SlidableController slidController = SlidableController(this);
   bool showOriginData = false;
 
-  /// 最近一次长按的时间戳：长按进入多选时手指必然存在微小位移，若不屏蔽，
-  /// startActionPane 的 DismissiblePane 会把它误判为侧滑补选，导致
-  /// onLongPress 与 onToggleSelected 在同一次手势内先后触发（表现为震动两下），
-  /// 且 selectRange 会重算选中集合，可能把多选态意外清空，
-  /// 进而让边缘返回手势失去拦截、直接退出应用。
-  /// 采用时间窗而非布尔标记，避免标记未复位导致侧滑补选永久失效。
-  DateTime? _lastLongPressAt;
-
   /// 最近一次长按震动的时间戳，用于对震动做去重，确保一次长按只震一次。
   DateTime? _lastHapticAt;
-
-  /// 长按后屏蔽侧滑补选的时间窗。
-  ///
-  /// 取值需覆盖“长按判定完成 → 手指抬起”这一整段时间：
-  /// Android 长按触发阈值约 500ms，用户长按后往往还会保持按住片刻再抬手，
-  /// 600ms 的窗口在部分机型上偏紧，会出现长按与侧滑补选同时命中的“震动两下”。
-  /// 放宽到 1000ms 后，仍远小于用户“先长按、再主动侧滑补选”的自然间隔，
-  /// 不会影响正常的区间补选手势。
-  static const _longPressGuardWindow = Duration(milliseconds: 1000);
-
-  /// 当前是否处于“长按屏蔽侧滑补选”的时间窗内。
-  bool get _isInLongPressGuard {
-    final at = _lastLongPressAt;
-    if (at == null) {
-      return false;
-    }
-    return DateTime.now().difference(at) < _longPressGuardWindow;
-  }
 
   @override
   void initState() {
@@ -164,14 +138,7 @@ class _ClipDataCardState extends State<ClipDataCard>
         enableFeedback: false,
         mouseCursor: SystemMouseCursors.basic,
         onTap: leftTapWrapper.wrapperTap,
-        onTapDown: (_) {
-          // 新手势开始：清空上一次长按留下的屏蔽时间窗，
-          // 保证正常侧滑补选仍然可用。
-          _lastLongPressAt = null;
-        },
         onLongPress: () {
-          // 长按归长按：记录时间戳，在时间窗内屏蔽侧滑补选。
-          _lastLongPressAt = DateTime.now();
           // 震动在此显式触发（InkWell 的 enableFeedback 已关闭），并做时间窗去重，
           // 确保一次长按只产生一次震动，避免"快速震动两下"。
           final now = DateTime.now();
@@ -277,18 +244,12 @@ class _ClipDataCardState extends State<ClipDataCard>
       key: ValueKey(widget.clip.data.id),
       startActionPane: ActionPane(
         motion: const SizedBox.shrink(),
-        // 原值为 0.01，阈值近似为零，长按时的轻微手抖也会被判定为侧滑；
-        // 这里放宽到 0.15，只有明确的横向滑动才会触发补选入口。
-        extentRatio: 0.15,
+        extentRatio: 0.01,
         dismissible: DismissiblePane(
           onDismissed: () {},
-          dismissThreshold: 0.15,
+          dismissThreshold: 0.1,
           confirmDismiss: () {
             slidController.close();
-            // 本次手势属于长按（长按手势内附带的微小位移），不重复执行侧滑补选。
-            if (_isInLongPressGuard) {
-              return Future.value(false);
-            }
             widget.onToggleSelected?.call();
             return Future.value(false);
           },

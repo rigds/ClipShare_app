@@ -59,37 +59,12 @@ class _ClipDataCardCompactState extends State<ClipDataCardCompact> with TickerPr
   bool _slided = false;
   static final _pastingIds = <int>{};
 
-  /// 最近一次长按的时间戳：长按进入多选时手指必然存在微小位移，若不屏蔽，
-  /// startActionPane 的 DismissiblePane 会把它误判为侧滑补选，导致
-  /// onLongPress 与 onToggleSelected 在同一次手势内先后触发（表现为震动两下），
-  /// 且 selectRange 会重算选中集合，可能把多选态意外清空。
-  /// 采用时间窗而非布尔标记，避免标记未复位导致侧滑补选永久失效。
-  DateTime? _lastLongPressAt;
-
   /// 最近一次长按震动的时间戳，用于对震动做去重。
   ///
   /// InkWell 的 enableFeedback 已关闭，震动由 onLongPress 回调显式触发。
   /// 个别 ROM 存在重复派发长按回调的情况，这里用时间窗兜底，
   /// 确保一次长按只产生一次震动（避免"快速震动两下"）。
   DateTime? _lastHapticAt;
-
-  /// 长按后屏蔽侧滑补选的时间窗。
-  ///
-  /// 取值需覆盖“长按判定完成 → 手指抬起”这一整段时间：
-  /// Android 长按触发阈值约 500ms，用户长按后往往还会保持按住片刻再抬手，
-  /// 600ms 的窗口在部分机型上偏紧，会出现长按与侧滑补选同时命中的“震动两下”。
-  /// 放宽到 1000ms 后，仍远小于用户“先长按、再主动侧滑补选”的自然间隔，
-  /// 不会影响正常的区间补选手势。
-  static const _longPressGuardWindow = Duration(milliseconds: 1000);
-
-  /// 当前是否处于“长按屏蔽侧滑补选”的时间窗内。
-  bool get _isInLongPressGuard {
-    final at = _lastLongPressAt;
-    if (at == null) {
-      return false;
-    }
-    return DateTime.now().difference(at) < _longPressGuardWindow;
-  }
 
   ///右键菜单
   void showMenu(Offset? position, BuildContext context) {
@@ -202,8 +177,6 @@ class _ClipDataCardCompactState extends State<ClipDataCardCompact> with TickerPr
                   await _copyAndPaste();
                 },
           onLongPress: () {
-            // 长按归长按：记录时间戳，在时间窗内屏蔽侧滑补选。
-            _lastLongPressAt = DateTime.now();
             // 震动由这里显式触发（InkWell 的 enableFeedback 已关闭）。
             // 加去重守卫：极少数机型/ROM 存在重复派发，这里兜底保证只震一次。
             final now = DateTime.now();
@@ -214,12 +187,6 @@ class _ClipDataCardCompactState extends State<ClipDataCardCompact> with TickerPr
               HapticFeedback.mediumImpact();
             }
             widget.onLongPress?.call();
-          },
-          onTapDown: (_) {
-            // 新手势开始：清空上一次长按留下的屏蔽时间窗，保证正常侧滑补选仍然可用。
-            // 注意：长按过程中抬手不会再派发 tapDown，因此这里清空不会误伤
-            // “长按后同一次手势内的微小位移”场景（那正是需要屏蔽的情况）。
-            _lastLongPressAt = null;
           },
           onSecondaryTapDown: (details) {
             showMenu(details.globalPosition - const Offset(0, 70), context);
@@ -301,21 +268,12 @@ class _ClipDataCardCompactState extends State<ClipDataCardCompact> with TickerPr
       key: ValueKey(widget.clip.data.id),
       startActionPane: ActionPane(
         motion: const SizedBox.shrink(),
-        // 原值为 0.01，阈值近似为零，长按时的轻微手抖也会被判定为侧滑；
-        // 这里放宽到 0.15，只有明确的横向滑动才会触发补选入口。
-        extentRatio: 0.15,
+        extentRatio: 0.01,
         dismissible: DismissiblePane(
           onDismissed: () {},
-          dismissThreshold: 0.15,
+          dismissThreshold: 0.1,
           confirmDismiss: () {
             _slidableController.close();
-            // 本次手势属于长按（长按手势内附带的微小位移），不重复执行侧滑补选。
-            // 双重判定：既看长按时间窗，也看长按后是否已进入多选——
-            // 长按一定会先触发 onLongPress 并进入多选态，
-            // 而真正的侧滑补选发生在“已处于多选态”时，二者不会混淆。
-            if (_isInLongPressGuard) {
-              return Future.value(false);
-            }
             widget.onToggleSelected?.call();
             return Future.value(false);
           },
