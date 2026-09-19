@@ -405,19 +405,17 @@ class _HistoryWindowState extends State<HistoryWindow> with WindowListener, Wind
                             _refreshState();
                           },
                           onToggleSelected: () {
-                            // 侧滑手势触发：语义上属于“补选一段区间”。
-                            //
-                            // 但实测发现 onLongPress 抬手时的微小位移也会进入这里，
-                            // 由于 selectRange 在“已有选中项”时会自动填充整段区间
-                            // （见 ClipMultiSelectionController.selectRange），
-                            // 表现为“点一下突然选中一大堆、计数与蓝框还对不上”。
-                            //
-                            // 因此这里改为严格的单项切换：点按/补选都只影响当前一项，
-                            // 选中结果与计数、蓝框始终一一对应，彻底消除区间误选。
+                            // 侧滑手势触发：语义为“补选一段区间”。
+                            // 恢复为原版 selectRange 行为，侧滑补选功能与初始版本一致。
                             if (!_selectionController.enabled) {
-                              return;
+                              _enableSelectMode();
                             }
-                            _selectionController.toggleItem(item.data);
+                            _selectionController.selectRange(
+                              _list
+                                  .map((entry) => entry.data)
+                                  .toList(growable: false),
+                              item.data,
+                            );
                             _refreshState();
                           },
                           onTopChanged: (int id, bool isTop) {

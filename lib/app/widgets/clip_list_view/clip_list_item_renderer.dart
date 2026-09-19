@@ -71,12 +71,11 @@ extension _ClipListItemRenderer on ClipListViewState {
         }
       },
       onToggleSelected: (){
-        // 侧滑补选入口。为避免“已有选中项时区间填充整段”导致
-        // “点一下选中一大堆、计数与蓝框不一致”，这里同样收敛为单项切换。
+        // 侧滑补选入口：恢复为原版 selectRange 行为，区间补选功能与初始版本一致。
         if (!_selectionController.enabled) {
-          return;
+          _enableSelectMode();
         }
-        _selectionController.toggleItem(item);
+        _selectionController.selectRange(List<ClipData>.from(widget.list), item);
         _refreshState();
       },
       onMoreActionsTap: (){

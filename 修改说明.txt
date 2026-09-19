@@ -720,3 +720,54 @@ WebDAV 自动建目录、签名回退）全部保留，不受影响。
     各带 300ms 时间窗去重。
   - 两处 InkWell 均 enableFeedback: false，系统不再额外震动。
   - 单次长按 → 单次震动。
+
+════════════════════════════════════════════════════════════════════
+【2026-09-19 修正·重要】侧滑补选功能被误删 —— 已恢复
+════════════════════════════════════════════════════════════════════
+
+■ 问题
+  用户反馈"侧滑补选根本没修复，现在都没用了"。
+
+■ 根因（两处，均为本人误改）
+  之前把 onToggleSelected 的回调语义从 selectRange（区间补选）
+  改成了 toggleItem（单项切换），导致侧滑只能切换单项，
+  区间补选功能实际被移除。
+
+  误改原因：排查"点一下偶尔选中一大堆"时，误以为根因是 selectRange
+  的区间填充逻辑；实际根因是长按双震动（InkWell.enableFeedback 叠加），
+  与 selectRange 无关。属于基于错误假设改动功能，已深刻检讨。
+
+■ 恢复内容
+
+  1) lib/app/modules/views/windows/history/history_window.dart（约 407 行）
+     onToggleSelected：
+       - 移除：toggleItem(item.data) + "已启用才执行"的短路 return
+       - 恢复：
+           if (!_selectionController.enabled) { _enableSelectMode(); }
+           _selectionController.selectRange(
+             _list.map((e) => e.data).toList(growable: false), item.data);
+           _refreshState();
+
+  2) lib/app/widgets/clip_list_view/clip_list_item_renderer.dart（约 73 行）
+     onToggleSelected：
+       - 移除：toggleItem(item)
+       - 恢复：
+           if (!_selectionController.enabled) { _enableSelectMode(); }
+           _selectionController.selectRange(
+             List<ClipData>.from(widget.list), item);
+           _refreshState();
+
+  说明：selectRange 本身自带保护 —— 未进入多选态时只执行 _enableSelectMode()，
+  不进行区间填充；因此侧滑的手感与原始版本一致。
+
+■ 同时确认（未改动，与原版一致）
+  - clip_data_card_compact.dart 侧滑参数：extentRatio 0.01、dismissThreshold 0.1、
+    confirmDismiss 直调 onToggleSelected，均与原版一致。
+  - clip_data_card.dart 侧滑逻辑与原版一致。
+  - 两个卡片组件仅有两处改动：InkWell enableFeedback: false、震动 300ms 时间窗去重，
+    均不影响侧滑功能。
+
+■ 两条侧滑路径
+  - 历史窗口：history_window.dart → ClipDataCardCompact（compact 卡片）
+  - 列表视图：clip_list_item_renderer.dart → ClipDataCard（标准卡片）
+  两条路径的 onToggleSelected 均已恢复 selectRange。
