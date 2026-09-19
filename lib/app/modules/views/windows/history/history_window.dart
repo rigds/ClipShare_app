@@ -383,28 +383,41 @@ class _HistoryWindowState extends State<HistoryWindow> with WindowListener, Wind
                           selected: _selectionController.contains(item.data),
                           onCopied: _closeIfPreferenceEnabled,
                           onTap: () {
+                            // 多选态下的点击：只切换当前项，语义单一、与计数严格一致。
+                            // 这里不再调用震动，避免与 onLongPress 的震动叠加成“两下”。
                             if (_selectionController.enabled) {
                               _selectionController.toggleItem(item.data);
                               _refreshState();
                             }
                           },
                           onLongPress: () {
+                            // 长按是进入多选 / 选中当前项的唯一入口。
+                            //
+                            // 震动统一由 ClipDataCardCompact 内部处理：
+                            // 其 InkWell 已设置 enableFeedback = false，避免系统长按反馈
+                            // (Feedback.forLongPress → HapticFeedback.vibrate) 与手动震动
+                            // 叠加成"快速震动两下"；组件内对震动做了时间窗去重，
+                            // 保证一次长按只震一次（mediumImpact）。
+                            //
+                            // 此处只负责状态变更，不要再调用 HapticFeedback。
                             _enableSelectMode();
                             _selectionController.toggleItem(item.data);
-                            HapticFeedback.mediumImpact();
                             _refreshState();
                           },
                           onToggleSelected: () {
+                            // 侧滑手势触发：语义上属于“补选一段区间”。
+                            //
+                            // 但实测发现 onLongPress 抬手时的微小位移也会进入这里，
+                            // 由于 selectRange 在“已有选中项”时会自动填充整段区间
+                            // （见 ClipMultiSelectionController.selectRange），
+                            // 表现为“点一下突然选中一大堆、计数与蓝框还对不上”。
+                            //
+                            // 因此这里改为严格的单项切换：点按/补选都只影响当前一项，
+                            // 选中结果与计数、蓝框始终一一对应，彻底消除区间误选。
                             if (!_selectionController.enabled) {
-                              _enableSelectMode();
+                              return;
                             }
-                            HapticFeedback.mediumImpact();
-                            _selectionController.selectRange(
-                              _list
-                                  .map((entry) => entry.data)
-                                  .toList(growable: false),
-                              item.data,
-                            );
+                            _selectionController.toggleItem(item.data);
                             _refreshState();
                           },
                           onTopChanged: (int id, bool isTop) {

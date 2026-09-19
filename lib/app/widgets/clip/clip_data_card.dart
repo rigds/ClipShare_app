@@ -24,6 +24,7 @@ import 'package:clipshare/app/widgets/clip/clip_simple_data_content.dart';
 import 'package:clipshare/app/widgets/clip/clip_simple_data_footer.dart';
 import 'package:clipshare/app/widgets/clip/clip_simple_data_header.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_context_menu/flutter_context_menu.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:get/get.dart';
@@ -69,7 +70,6 @@ class _ClipDataCardState extends State<ClipDataCard>
     with TickerProviderStateMixin {
   static const _borderWidth = 2.0;
   static const _borderRadius = 12.0;
-  bool _selected = false;
 
   final dbService = Get.find<DbService>();
   final appConfig = Get.find<ConfigService>();
@@ -89,8 +89,17 @@ class _ClipDataCardState extends State<ClipDataCard>
   /// 采用时间窗而非布尔标记，避免标记未复位导致侧滑补选永久失效。
   DateTime? _lastLongPressAt;
 
+  /// 最近一次长按震动的时间戳，用于对震动做去重，确保一次长按只震一次。
+  DateTime? _lastHapticAt;
+
   /// 长按后屏蔽侧滑补选的时间窗。
-  static const _longPressGuardWindow = Duration(milliseconds: 600);
+  ///
+  /// 取值需覆盖“长按判定完成 → 手指抬起”这一整段时间：
+  /// Android 长按触发阈值约 500ms，用户长按后往往还会保持按住片刻再抬手，
+  /// 600ms 的窗口在部分机型上偏紧，会出现长按与侧滑补选同时命中的“震动两下”。
+  /// 放宽到 1000ms 后，仍远小于用户“先长按、再主动侧滑补选”的自然间隔，
+  /// 不会影响正常的区间补选手势。
+  static const _longPressGuardWindow = Duration(milliseconds: 1000);
 
   /// 当前是否处于“长按屏蔽侧滑补选”的时间窗内。
   bool get _isInLongPressGuard {
@@ -114,18 +123,20 @@ class _ClipDataCardState extends State<ClipDataCard>
           slidController.close();
           return;
         }
-        if (widget.selectMode) {
-          setState(() {
-            _selected = !_selected;
-          });
-          widget.onTap?.call();
-          return;
-        }
+        // 多选模式下不做双击判定：双击语义是"复制内容"，
+        // 在多选场景既无意义，又会因 DoubleTapWrapper 的延迟导致
+        // 点击后需等待 200ms 才响应（表现为"点了没反应、计数不更新"）。
+        // 选中态完全交给外部受控（widget.selected），
+        // 卡片自身不维护第二份 _selected，避免蓝框与真实选中集合分叉。
         widget.onTap?.call();
       },
-      onDoubleTap: PlatformExt.isDesktop
-          ? null
-          : (details) => widget.onDoubleTap?.call(),
+      onDoubleTap: (details) {
+        // 运行时判断而非 initState 时快照：卡片进入多选态后不应再响应双击复制。
+        if (PlatformExt.isDesktop || widget.selectMode) {
+          return;
+        }
+        widget.onDoubleTap?.call();
+      },
     );
     rightTapWrapper = DoubleTapWrapper(
       doubleTapInterval: 200.ms,
@@ -146,10 +157,11 @@ class _ClipDataCardState extends State<ClipDataCard>
 
   @override
   Widget build(BuildContext context) {
-    _selected = widget.selected;
     final content = Card(
       elevation: 0,
       child: InkWell(
+        // 同 ClipDataCardCompact：关闭 InkWell 自带反馈，震动由回调显式单次触发。
+        enableFeedback: false,
         mouseCursor: SystemMouseCursors.basic,
         onTap: leftTapWrapper.wrapperTap,
         onTapDown: (_) {
@@ -160,14 +172,23 @@ class _ClipDataCardState extends State<ClipDataCard>
         onLongPress: () {
           // 长按归长按：记录时间戳，在时间窗内屏蔽侧滑补选。
           _lastLongPressAt = DateTime.now();
+          // 震动在此显式触发（InkWell 的 enableFeedback 已关闭），并做时间窗去重，
+          // 确保一次长按只产生一次震动，避免"快速震动两下"。
+          final now = DateTime.now();
+          if (_lastHapticAt == null ||
+              now.difference(_lastHapticAt!) >
+                  const Duration(milliseconds: 300)) {
+            _lastHapticAt = now;
+            HapticFeedback.mediumImpact();
+          }
           widget.onLongPress?.call();
         },
         borderRadius: BorderRadius.circular(_borderRadius),
         child: Container(
-          margin: widget.selectMode && _selected
+          margin: widget.selectMode && widget.selected
               ? null
               : const EdgeInsets.all(_borderWidth),
-          decoration: widget.selectMode && _selected
+          decoration: widget.selectMode && widget.selected
               ? BoxDecoration(
                   border: Border.all(
                     color: Colors.blue,

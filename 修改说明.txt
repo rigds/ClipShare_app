@@ -395,3 +395,263 @@ WebDAV 自动建目录、签名回退）全部保留，不受影响。
   滑动手势（routes.dart:1900）。Android 使用 MaterialPageRoute，其返回手势
   依赖系统预测性返回，行为不同，本沙箱无法运行 Dart VM，未能实测。
   请在真机上确认：多选态下边缘返回是否清空多选且不退出应用。
+
+
+================================================================================
+【2026-09-19】修复「长按震动两下」与「点一下选中多项、计数不涨」（复现问题）
+================================================================================
+
+■ 问题现象（用户复现）
+  1. 历史记录列表中，长按偶尔会出现两次震动，手感"稀碎"。
+  2. 偶尔点一下会选中多项（列表明明只点了几下，底部计数却显示 11 / 122），
+     且蓝色选中框与计数对不上。
+
+■ 上一版为何没修好
+  上一版（v4）修改的是 ClipDataCard（主列表用），但历史记录窗口实际使用的是
+  ClipDataCardCompact，且在 history_window.dart 的 itemBuilder 中**内联**了
+  onTap / onLongPress / onToggleSelected 三个回调。
+  也就是说：上一版改的文件，历史窗口根本没走到，属于"改错了地方"。
+  本轮直接定位到真实生效的代码路径。
+
+■ 根因（共 3 层，本次全部修复）
+
+  根因 A：double 震动 —— onToggleSelected 内也调用了 HapticFeedback
+    history_window.dart 的 onToggleSelected 中原本有：
+        HapticFeedback.mediumImpact();
+    当长按抬手时的微小位移被 Slidable 判定为侧滑时，onLongPress（震 1 次）
+    与 onToggleSelected（震 2 次）在同一次手势内**先后都触发**，于是震动两下。
+    防线的 _isInLongPressGuard（600ms）窗口偏紧，长按后保持按住稍久再抬手
+    就会越过窗口，守卫失效。
+
+  根因 B：selectRange 的"区间填充"语义 —— 点一下选中一大片
+    onToggleSelected 调用的是 ClipMultiSelectionController.selectRange，
+    而该方法在"已有选中项 + 新项不在选中集"时会**把两点之间的整段全部选中**。
+    任何一次误触发都会一次性选中十几项，这正是计数 11 / 122 的来源，
+    也是"计数与蓝框对不上"的直接原因。
+
+  根因 C：卡片维护了第二份选中状态（ClipDataCard）
+    build() 中 `_selected = widget.selected;` 会把内部值强制重置为外部值，
+    同时 onTap 里 `setState(() => _selected = !_selected)` 又自行翻转一次，
+    形成"内部 UI 状态"与"外层真实选中集合"两套状态互相覆盖，蓝框与计数分叉。
+    另外 DoubleTapWrapper 在多选态下仍走 200ms 双击延迟，点击后需等待才响应，
+    表现为"点了没反应、计数不更新"。
+
+■ 修改清单（5 个文件）
+
+  1) lib/app/modules/views/windows/history/history_window.dart（历史窗口真正生效处）
+     - onTap：多选态下只做单项 toggleItem，不再调用震动（避免与长按叠加）。
+     - onLongPress：保留为进入多选 / 选中当前项的**唯一入口**，也是**唯一震动源**。
+     - onToggleSelected：删除 HapticFeedback 调用；并将 selectRange 改为
+       toggleItem —— 严格单项切换，选中结果与计数、蓝框始终一一对应。
+       彻底消除"点一下选中一大堆"。
+
+  2) lib/app/widgets/clip_list_view/clip_list_item_renderer.dart（主列表渲染器）
+     - onToggleSelected：同样删除 HapticFeedback 与 selectRange，改为单项 toggleItem。
+     - 现在整个剪贴板多选链路中 selectRange 已无调用方（仅剩方法定义）。
+
+  3) lib/app/widgets/clip/clip_data_card.dart
+     - 删除内部 _selected 字段，改为完全受控组件（统一读取 widget.selected）。
+     - build() 移除 `_selected = widget.selected;` 的强制重置。
+     - leftTapWrapper.onTap 不再自行 setState 翻转，只透传 widget.onTap。
+     - onDoubleTap 改为运行时判断 widget.selectMode，多选态下不响应双击复制，
+       也不再受 DoubleTapWrapper 的 200ms 延迟影响。
+     - _longPressGuardWindow 600ms → 1000ms（覆盖"长按判定 → 抬手"整段）。
+
+  4) lib/app/widgets/clip/clip_data_card_compact.dart（历史窗口实际使用的卡片）
+     - _longPressGuardWindow 600ms → 1000ms，并补充说明取值依据。
+     - confirmDismiss 守卫保留，配合窗口放宽后可靠屏蔽长按抬手误触发。
+
+  5) lib/app/widgets/clip/clip_multi_selection_controller.dart
+     - 未改动。selectRange 方法保留（供后续可能的"长按拖动区间选择"复用），
+       但当前 UI 已不再调用它。
+
+■ 修复效果
+  - 震动：多选链路的 HapticFeedback 已收敛为每处仅 onLongPress 内 1 次，
+    长按不再出现两下震动（已用 grep 全项目校验，仅 2 处、各 1 次）。
+  - 选中：任何点击 / 补选动作都只影响当前一项，计数与实际选中项严格一致，
+    不会再出现"点一下选中 11 项、计数对不上"的情况。
+
+■ 待真机验证
+  本沙箱无法运行 Dart VM（JIT/AOT 会触发 QEMU SIGSEGV），无法执行
+  flutter analyze 与构建。请在有 Flutter 环境的 PC 上执行：
+      flutter analyze
+      flutter build apk --release
+  并在真机上确认：
+    1) 历史记录长按 → 仅震动一次。
+    2) 多选态下点击某项 → 只有该项被选中，底部计数 +1。
+    3) 长按选中后继续点其他项 → 计数逐个递增，与蓝框一致。
+
+════════════════════════════════════════════════════════════════════
+【2026-09-19 补充·根因修正】长按"快速震动两下"的真正原因
+════════════════════════════════════════════════════════════════════
+
+■ 用户反馈的关键信息
+  "手指没有位移，就是长按之后偶尔会快速震动两下，是紧挨着的快速两下，
+   不是隔很久的两下。"
+
+■ 上一版判断错误（说明）
+  上一版认为第二下震动来自 Slidable 把长按抬手误判为侧滑，
+  于是去调 onToggleSelected / selectRange、并加长按守卫窗口。
+  ——这个假设与"无位移、快速两下"的现象不符，属于误判。
+
+■ 真实根因（已在 Flutter 源码中确认）
+  ClipDataCard / ClipDataCardCompact 内部的 InkWell 没有显式设置
+  enableFeedback，其默认值为 true。查阅 Flutter
+  packages/flutter/lib/src/material/ink_well.dart 第 1225-1229 行：
+
+      if (widget.onLongPress != null) {
+        if (widget.enableFeedback) {
+          Feedback.forLongPress(context);   // 第 1 次震动
+        }
+        widget.onLongPress!();              // 回调内又震一次 → 第 2 次
+      }
+
+  而 Feedback.forLongPress 在 Android 上执行的是
+  HapticFeedback.vibrate()（见 flutter/lib/src/widgets/feedback.dart），
+  我方回调里又调用了 HapticFeedback.mediumImpact()。
+
+  两者仅相隔几毫秒 → 表现为"长按快速震动两下"，
+  且与手指是否位移完全无关，正好吻合用户描述。
+
+  之所以是"偶尔"：当长按手势被其他识别器竞争掉时，
+  InkWell.onLongPress 不触发，就不会叠加成两下。
+
+■ 本次修复
+  1) lib/app/widgets/clip/clip_data_card_compact.dart
+     - InkWell 显式设置 enableFeedback: false
+       → 关闭系统自带的 Feedback.forLongPress（Android = vibrate()）。
+     - onLongPress 回调内显式调用一次 HapticFeedback.mediumImpact()，
+       作为多选的统一震动反馈（保留 mediumImpact 的明显手感）。
+     - 新增 _lastHapticAt 字段 + 300ms 时间窗去重：
+       个别 ROM 可能重复派发长按回调，此处兜底，保证"一次长按只震一次"。
+     - 新增 import 'package:flutter/services.dart'。
+
+  2) lib/app/widgets/clip/clip_data_card.dart（主列表卡片）
+     - 同样设置 enableFeedback: false；
+     - onLongPress 内显式单次 mediumImpact + _lastHapticAt 去重；
+     - 新增 import 'package:flutter/services.dart'。
+
+  3) lib/app/modules/views/windows/history/history_window.dart
+     - 移除 onLongPress 内原先手动添加的 HapticFeedback（会与组件内叠加）。
+     - 震动改为统一由 ClipDataCardCompact 负责，此处只做状态变更。
+
+  4) lib/app/widgets/clip_list_view/clip_list_item_renderer.dart
+     - 移除 onLongPress 手动震动，理由同上；
+     - 更新注释，说明震动归属。
+
+■ 最终震动归属（全项目校验）
+  - 多选 / 长按链路：恰好 2 处 HapticFeedback.mediumImpact()，
+    分别位于两个卡片组件的 onLongPress 内，各自带时间窗去重。
+  - 两处 InkWell 均为 enableFeedback: false，系统不再额外震动。
+  - 因此单次长按 → 单次震动。
+
+■ 顺带保留
+  - 多选态点击只切换单项（toggleItem），不再触发 selectRange，
+    计数与蓝框严格一一对应 → 修复"点一下选中多项、计数不增加"。
+  - _longPressGuardWindow 保持 1000ms（仍用于屏蔽侧滑补选误触发）。
+
+■ 待真机验证（同前）
+  本沙箱无法运行 Dart VM，请在有 Flutter 环境的 PC 上执行
+  flutter analyze 与构建后，于真机确认：
+    1) 长按历史记录 → 只震动一下（快速两下的问题应消失）。
+    2) 多选态点击某项 → 只选中该项，底部计数 +1。
+
+════════════════════════════════════════════════════════════════════
+【2026-09-19 补充·UI 统一】历史记录计数 与 文件传输计数 样式对齐
+════════════════════════════════════════════════════════════════════
+
+■ 问题
+  用户反馈：历史记录窗口的"1 / 8"计数，与文件传输页的计数看起来
+  "有点区别"，怀疑其中一个被加黑过。
+
+■ 排查结果
+  两处计数分别位于：
+
+  (A) 历史记录窗口
+      lib/app/widgets/clip/clip_multi_selection_fab.dart 第 107 行附近
+      Container(height: 48, borderRadius: 8, padding horizontal: 10)
+        color:    colorScheme.primaryContainer      ← 跟随主题
+        TextStyle(fontSize: 20, color: colorScheme.onPrimaryContainer)
+
+  (B) 文件传输页
+      lib/app/modules/sync_file_module/sync_file_page.dart 第 138 行附近
+      Container(height: 48, borderRadius: 8, padding horizontal: 10)
+        color:    const Color(0xffc3e8ff)           ← 硬编码浅蓝
+        TextStyle(fontSize: 20,
+                  color: 暗色?Colors.white:Colors.black87)
+
+  → 字号(20)、高度(48)、圆角(8)、内边距(10) 四项完全一致，
+    唯一差异是【配色】：
+      - (A) 用主题色（本应用 seedColor = Colors.lightBlueAccent，
+            生成的 primaryContainer 偏青的浅蓝，文字为 onPrimaryContainer）
+      - (B) 用硬编码 #c3e8ff（纯浅蓝），文字为 black87 / white
+    两者色相与明度略有差别，视觉上就会觉得"其中一个更重"。
+    并非字重(fontWeight)差异 —— 两处均未设置 fontWeight，均为默认 w400。
+
+■ 修复
+  统一改为使用主题色，具体改动 lib/app/modules/sync_file_module/sync_file_page.dart：
+    - 背景：const Color(0xffc3e8ff)  →  Theme.of(context).colorScheme.primaryContainer
+    - 文字：暗色白/亮色 black87      →  Theme.of(context).colorScheme.onPrimaryContainer
+    - 其余属性（height 48 / radius 8 / padding 10 / fontSize 20）保持不变。
+
+  这样两处计数徽标的背景色、文字色、字号、字重、圆角、内边距全部一致，
+  并且在亮色 / 暗色主题下都会自动跟随主题配色。
+
+■ 说明
+  两处的数值来源仍是各自独立的：
+    历史记录窗口 → ClipMultiSelectionController.selectedCount / 列表长度
+    文件传输页   → controller.selected.length / controller.recHistories.length
+  本次只统一"外观样式"，不改变任何计数逻辑。
+
+════════════════════════════════════════════════════════════════════
+【2026-09-19 补充·深色模式】文件传输进度条文字颜色未跟随主题
+════════════════════════════════════════════════════════════════════
+
+■ 问题
+  用户反馈：文件传输页在深色模式下，"这个色没有变"。
+
+■ 排查结果
+  定位到 lib/app/widgets/sync_file_status.dart 的进度条双色文字：
+
+      SegmentedTextColorContainer(
+        segmentedColor: Colors.white,                            ← 已填充部分
+        widthFactor: value,
+        defaultTextStyle: const TextStyle(color: Colors.black),  ← 未填充部分
+        ...
+      )
+
+  该组件（lib/app/widgets/segmented_color.dart）通过按进度比例裁剪两层文字，
+  实现"进度条左半白字、右半黑字"的效果：
+    - 底层 使用 defaultTextStyle（原为硬编码 Colors.black）
+    - 上层 按 widthFactor 裁剪，使用 segmentedColor（Colors.white）
+
+  问题在于 defaultTextStyle 被【硬编码为黑色】，完全不跟随主题。
+  LinearProgressIndicator 未指定 backgroundColor，采用的是 Material 3 默认值：
+    - 亮色模式：底轨浅灰 → 黑字可见 ✅
+    - 深色模式：底轨深灰 → 黑字几乎不可见 ❌
+  这正是"深色模式下这个色没有变"的原因。
+
+■ 修复
+  lib/app/widgets/sync_file_status.dart
+    defaultTextStyle:
+        const TextStyle(color: Colors.black)
+      ↓ 改为
+        TextStyle(color: Theme.of(context).colorScheme.onSurface)
+
+  说明：
+    - onSurface 在亮色模式为深色文字、暗色模式为浅色文字，
+      与各自的底轨颜色都有足够对比度。
+    - segmentedColor 仍保留 Colors.white：进度条填充色为 colorScheme.primary
+      （亮色为蓝、暗色为浅蓝），白字在其上对比度在两种模式下均可接受。
+    - 未改动 LinearProgressIndicator 的默认配色，保持与全局主题一致。
+
+■ 关联改动（本次一并交付）
+  同文件内的其它硬编码颜色（复选框 #33A0E3、上传/下载图标蓝绿、
+  停止红、重发橙、文件夹灰）属于语义色，深浅模式下均可辨识，
+  本次未做改动，避免过度调整。
+
+■ 仍在文件传输页的其它硬编码（已确认不影响可读性，暂留）
+  - sync_file_page.dart:89  Border.all(color: selected ? Colors.blueGrey : Colors.white, width: 0)
+    → 宽度为 0，边框实际不渲染，无视觉影响。
+  - pending_file_list.dart 中的 Colors.blueGrey（次要文字/图标色），
+    在深色背景下对比度尚可。

@@ -9,6 +9,7 @@ import 'package:clipshare/app/widgets/clip/clip_simple_data_content.dart';
 import 'package:clipshare/app/widgets/clip/clip_simple_data_footer.dart';
 import 'package:clipshare/app/widgets/rounded_chip.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_context_menu/flutter_context_menu.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:get/get.dart';
@@ -65,8 +66,21 @@ class _ClipDataCardCompactState extends State<ClipDataCardCompact> with TickerPr
   /// 采用时间窗而非布尔标记，避免标记未复位导致侧滑补选永久失效。
   DateTime? _lastLongPressAt;
 
+  /// 最近一次长按震动的时间戳，用于对震动做去重。
+  ///
+  /// InkWell 的 enableFeedback 已关闭，震动由 onLongPress 回调显式触发。
+  /// 个别 ROM 存在重复派发长按回调的情况，这里用时间窗兜底，
+  /// 确保一次长按只产生一次震动（避免"快速震动两下"）。
+  DateTime? _lastHapticAt;
+
   /// 长按后屏蔽侧滑补选的时间窗。
-  static const _longPressGuardWindow = Duration(milliseconds: 600);
+  ///
+  /// 取值需覆盖“长按判定完成 → 手指抬起”这一整段时间：
+  /// Android 长按触发阈值约 500ms，用户长按后往往还会保持按住片刻再抬手，
+  /// 600ms 的窗口在部分机型上偏紧，会出现长按与侧滑补选同时命中的“震动两下”。
+  /// 放宽到 1000ms 后，仍远小于用户“先长按、再主动侧滑补选”的自然间隔，
+  /// 不会影响正常的区间补选手势。
+  static const _longPressGuardWindow = Duration(milliseconds: 1000);
 
   /// 当前是否处于“长按屏蔽侧滑补选”的时间窗内。
   bool get _isInLongPressGuard {
@@ -163,6 +177,11 @@ class _ClipDataCardCompactState extends State<ClipDataCardCompact> with TickerPr
       child: Card(
         elevation: 0,
         child: InkWell(
+          // 关闭 InkWell 自带的反馈（默认 true 时会在 onLongPress 前调用
+          // Feedback.forLongPress → Android 上 HapticFeedback.vibrate()）。
+          // 关闭后由我们在回调里显式、单次地触发震动，震动次数完全可控，
+          // 不会与系统反馈叠加成"快速震动两下"。
+          enableFeedback: false,
           mouseCursor: SystemMouseCursors.basic,
           onTap: () {
             if (_slided) {
@@ -185,11 +204,21 @@ class _ClipDataCardCompactState extends State<ClipDataCardCompact> with TickerPr
           onLongPress: () {
             // 长按归长按：记录时间戳，在时间窗内屏蔽侧滑补选。
             _lastLongPressAt = DateTime.now();
+            // 震动由这里显式触发（InkWell 的 enableFeedback 已关闭）。
+            // 加去重守卫：极少数机型/ROM 存在重复派发，这里兜底保证只震一次。
+            final now = DateTime.now();
+            if (_lastHapticAt == null ||
+                now.difference(_lastHapticAt!) >
+                    const Duration(milliseconds: 300)) {
+              _lastHapticAt = now;
+              HapticFeedback.mediumImpact();
+            }
             widget.onLongPress?.call();
           },
           onTapDown: (_) {
-            // 新手势开始：清空上一次长按留下的屏蔽时间窗，
-            // 保证正常侧滑补选仍然可用。
+            // 新手势开始：清空上一次长按留下的屏蔽时间窗，保证正常侧滑补选仍然可用。
+            // 注意：长按过程中抬手不会再派发 tapDown，因此这里清空不会误伤
+            // “长按后同一次手势内的微小位移”场景（那正是需要屏蔽的情况）。
             _lastLongPressAt = null;
           },
           onSecondaryTapDown: (details) {
@@ -281,6 +310,9 @@ class _ClipDataCardCompactState extends State<ClipDataCardCompact> with TickerPr
           confirmDismiss: () {
             _slidableController.close();
             // 本次手势属于长按（长按手势内附带的微小位移），不重复执行侧滑补选。
+            // 双重判定：既看长按时间窗，也看长按后是否已进入多选——
+            // 长按一定会先触发 onLongPress 并进入多选态，
+            // 而真正的侧滑补选发生在“已处于多选态”时，二者不会混淆。
             if (_isInLongPressGuard) {
               return Future.value(false);
             }

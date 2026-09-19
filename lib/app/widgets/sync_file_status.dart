@@ -268,9 +268,18 @@ class SyncFileStatus extends StatelessWidget {
                                 child: SizedBox(
                                   height: 20,
                                   child: SegmentedTextColorContainer(
+                                    // 双色文字：已填充部分用白色，未填充部分用
+                                    // 主题前景色。原实现把未填充部分硬编码为
+                                    // Colors.black，在深色模式下进度条底轨变深，
+                                    // 黑字叠深色底导致文字几乎不可见（不跟随主题）。
+                                    // 改为 onSurface，亮/暗主题下都能自适应。
                                     segmentedColor: Colors.white,
                                     widthFactor: value,
-                                    defaultTextStyle: const TextStyle(color: Colors.black),
+                                    defaultTextStyle: TextStyle(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface,
+                                    ),
                                     child: Row(
                                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                       children: [

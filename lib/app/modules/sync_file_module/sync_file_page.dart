@@ -123,9 +123,16 @@ class SyncFilePage extends GetView<SyncFileController> {
                               Visibility(
                                 visible: controller.selectMode,
                                 child: Container(
+                                  // 与历史记录窗口的计数徽标保持完全一致：
+                                  // 高度 / 圆角 / 内边距 / 字号 / 配色全部对齐
+                                  // （见 clip_multi_selection_fab.dart 中的计数徽标）。
+                                  // 不再使用硬编码的 #c3e8ff，改用主题色，
+                                  // 这样亮/暗色模式下都能自动适配，两处观感统一。
                                   height: 48,
                                   decoration: BoxDecoration(
-                                    color: const Color(0xffc3e8ff),
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .primaryContainer,
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   margin: const EdgeInsets.only(right: 10),
@@ -138,7 +145,9 @@ class SyncFilePage extends GetView<SyncFileController> {
                                         "${controller.selected.length} / ${controller.recHistories.length}",
                                         style: TextStyle(
                                           fontSize: 20,
-                                          color: appConfig.currentIsDarkMode ? Colors.white : Colors.black87,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onPrimaryContainer,
                                         ),
                                       ),
                                     ),

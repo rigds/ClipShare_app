@@ -71,20 +71,23 @@ extension _ClipListItemRenderer on ClipListViewState {
         }
       },
       onToggleSelected: (){
+        // 侧滑补选入口。为避免“已有选中项时区间填充整段”导致
+        // “点一下选中一大堆、计数与蓝框不一致”，这里同样收敛为单项切换。
         if (!_selectionController.enabled) {
-          _enableSelectMode();
+          return;
         }
-        HapticFeedback.mediumImpact();
-        _selectionController.selectRange(List<ClipData>.from(widget.list), item);
+        _selectionController.toggleItem(item);
         _refreshState();
       },
       onMoreActionsTap: (){
         showClipBottomSheet(widget.list[i]);
       },
       onLongPress: () {
+        // 震动统一由 ClipDataCard 内部处理（InkWell.enableFeedback = false，
+        // 回调内显式单次 mediumImpact 并做时间窗去重），此处只负责状态变更。
+        // ⚠ 不要在此处再调用 HapticFeedback，否则会与组件内震动叠加成"快速震动两下"。
         _enableSelectMode();
         _selectionController.toggleItem(item);
-        HapticFeedback.mediumImpact();
         _refreshState();
       },
       onDoubleTap: () async {
